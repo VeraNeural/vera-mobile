@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { CollaboratorsNetwork } from '../(components)/CollaboratorsNetwork';
 import { ResearchDashboard } from '../(components)/ResearchDashboard';
 import { BiometricsInsights } from '../(components)/BiometricsInsights';
+import { RegulationProtocolsUI } from '../(components)/RegulationProtocolsUI';
 
 interface LaboratorySceneProps {
   vagalTone?: number;
@@ -28,7 +29,7 @@ const LaboratoryScene = dynamic<LaboratorySceneProps>(
 
 export default function LaboratoryPage() {
   const [isEntering, setIsEntering] = useState(false);
-  const [activePanel, setActivePanel] = useState<'collaborators' | 'research' | 'biometrics' | null>(null);
+  const [activePanel, setActivePanel] = useState<'collaborators' | 'research' | 'biometrics' | 'protocols' | null>(null);
   const [vagalTone, setVagalTone] = useState(50);
   const [heartCoherence, setHeartCoherence] = useState(60);
   const [nervousSystemState, setNervousSystemState] = useState<'ventral' | 'sympathetic' | 'dorsal'>('ventral');
@@ -138,7 +139,7 @@ export default function LaboratoryPage() {
         </p>
 
         {/* Action Panels */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-6xl mx-auto">
           {/* Collaborators Panel */}
           <button
             onClick={() => setActivePanel(activePanel === 'collaborators' ? null : 'collaborators')}
@@ -183,11 +184,26 @@ export default function LaboratoryPage() {
             <div className="text-xs text-gray-400 mt-1">HRV • State • Insights</div>
             <div className="text-xs text-gray-500 mt-3">Your nervous system • Real-time</div>
           </button>
+
+          {/* Guided Protocols Panel */}
+          <button
+            onClick={() => setActivePanel(activePanel === 'protocols' ? null : 'protocols')}
+            className={`p-6 rounded-lg border transition-all duration-300 text-left ${
+              activePanel === 'protocols'
+                ? 'bg-purple-900/30 border-purple-500 scale-105'
+                : 'bg-gray-900/30 border-gray-700 hover:border-purple-500/50'
+            }`}
+          >
+            <div className="text-4xl mb-3">🎯</div>
+            <div className="text-white font-light">Protocols</div>
+            <div className="text-xs text-gray-400 mt-1">Train your nervous system • Evidence-based</div>
+            <div className="text-xs text-gray-500 mt-3">3–10 mins • Anytime</div>
+          </button>
         </div>
 
         {/* Expanded Panel Content */}
         {activePanel && (
-          <div className="mt-8 p-8 rounded-lg bg-gradient-to-br from-gray-900/50 to-gray-800/50 border border-gray-700/50 max-w-2xl mx-auto">
+          <div className="mt-8 p-8 rounded-lg bg-gradient-to-br from-gray-900/50 to-gray-800/50 border border-gray-700/50 max-w-4xl mx-auto">
             <button
               onClick={() => setActivePanel(null)}
               className="float-right text-gray-400 hover:text-white text-xl"
@@ -198,6 +214,7 @@ export default function LaboratoryPage() {
             {activePanel === 'collaborators' && <CollaboratorsNetwork />}
             {activePanel === 'research' && <ResearchDashboard />}
             {activePanel === 'biometrics' && <BiometricsInsights />}
+            {activePanel === 'protocols' && <RegulationProtocolsUI />}
           </div>
         )}
       </div>

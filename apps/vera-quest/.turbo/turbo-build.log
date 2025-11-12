@@ -4,7 +4,7 @@
 
 [36mvite v5.4.21 [32mbuilding for production...[36m[39m
 [32m✓[39m 0 modules transformed.
-[31mx[39m Build failed in 8ms
+[31mx[39m Build failed in 10ms
 [31merror during build:
 [31mCould not resolve entry module "index.html".[31m
     at getRollupError (file:///C:/vera-mobile/node_modules/.pnpm/rollup@4.53.2/node_modules/rollup/dist/es/shared/parseAst.js:401:41)
