@@ -1,263 +1,426 @@
-﻿'use client';
+'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import * as THREE from 'three';
 
-const useErrorLogger = () => {
-  const [errors, setErrors] = useState<string[]>([]);
-  const [logs, setLogs] = useState<string[]>([]);
-
-  useEffect(() => {
-    const errorHandler = (event: ErrorEvent) => {
-      setErrors(prev => [...prev, `ERROR: ${event.message}`]);
-    };
-
-    const consoleError = console.error;
-    console.error = (...args: any[]) => {
-      setErrors(prev => [...prev, `${args.join(' ')}`]);
-      consoleError(...args);
-    };
-
-    const consoleLog = console.log;
-    console.log = (...args: any[]) => {
-      setLogs(prev => [...prev.slice(-5), args.join(' ')]);
-      consoleLog(...args);
-    };
-
-    window.addEventListener('error', errorHandler);
-
-    return () => {
-      window.removeEventListener('error', errorHandler);
-      console.error = consoleError;
-      console.log = consoleLog;
-    };
-  }, []);
-
-  return { errors, logs };
-};
-
-function TestCube() {
-  const meshRef = useRef<THREE.Mesh>(null);
-  useFrame(() => {
-    if (meshRef.current) {
-      meshRef.current.rotation.x += 0.01;
-      meshRef.current.rotation.y += 0.01;
-    }
-  });
-  return (
-    <mesh ref={meshRef} position={[0, 1.6, -2]}>
-      <boxGeometry args={[0.5, 0.5, 0.5]} />
-      <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1} />
-    </mesh>
-  );
-}
-
-function SimpleScene() {
-  const { gl } = useThree();
-  useEffect(() => {
-    if (gl.xr) {
-      gl.xr.enabled = true;
-      console.log('XR enabled');
-    }
-  }, [gl]);
-
-  return (
-    <>
-      <color attach="background" args={['#111111']} />
-      <ambientLight intensity={0.8} />
-      <pointLight position={[0, 2, 0]} intensity={2} />
-      <pointLight position={[2, 1, -2]} intensity={1} color="#6666ff" />
-      <TestCube />
-      <mesh position={[0.8, 1.6, -2]}>
-        <sphereGeometry args={[0.2, 32, 32]} />
-        <meshStandardMaterial color="#00ffff" emissive="#00ffff" emissiveIntensity={1} />
-      </mesh>
-      <gridHelper args={[10, 10, '#444444', '#222222']} />
-    </>
-  );
-}
-
-export default function VRWithDebug() {
+export default function VERAVRPage() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<any>(null);
+  const [isVRSupported, setIsVRSupported] = useState(false);
   const [isInVR, setIsInVR] = useState(false);
-  const [status, setStatus] = useState('Checking VR...');
-  const [vrSupported, setVRSupported] = useState(false);
-  const { errors, logs } = useErrorLogger();
-  const glRef = useRef<any>(null);
+  const [errorMsg, setErrorMsg] = useState('');
   const isMountedRef = useRef(true);
 
   useEffect(() => {
     isMountedRef.current = true;
-    const checkVR = async () => {
+
+    // Check VR support
+    if (typeof navigator !== 'undefined' && 'xr' in navigator) {
+      (navigator as any).xr
+        .isSessionSupported('immersive-vr')
+        .then((supported: boolean) => {
+          if (isMountedRef.current) {
+            setIsVRSupported(supported);
+            console.log('✓ VR supported:', supported);
+          }
+        })
+        .catch((err: any) => {
+          console.error('VR check failed:', err);
+        });
+    }
+
+    const setupScene = async () => {
       try {
-        if (!('xr' in navigator)) {
-          if (isMountedRef.current) setStatus('WebXR not found');
-          return;
+        const THREE = await import('three');
+
+        const container = containerRef.current;
+        if (!container || !isMountedRef.current) return;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+
+        const camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000
+        );
+        camera.position.z = 5;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.xr.enabled = true;
+        renderer.xr.setFoveation(0);
+        rendererRef.current = renderer;
+        container.appendChild(renderer.domElement);
+
+        // Central glowing orb (core VERA)
+        const coreGeometry = new THREE.SphereGeometry(0.8, 64, 64);
+        const coreMaterial = new THREE.MeshPhongMaterial({
+          color: 0x6666ff,
+          emissive: 0x3333ff,
+          emissiveIntensity: 0.5,
+          shininess: 100
+        });
+        const coreOrb = new THREE.Mesh(coreGeometry, coreMaterial);
+        coreOrb.position.z = -5;
+        scene.add(coreOrb);
+
+        // Rotating rings
+        const ringGeometry = new THREE.TorusGeometry(1.2, 0.1, 16, 100);
+        const ringMaterial = new THREE.MeshPhongMaterial({
+          color: 0x00ffff,
+          emissive: 0x00aaaa,
+          emissiveIntensity: 0.3
+        });
+        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.position.z = -5;
+        ring.rotation.x = Math.PI / 4;
+        scene.add(ring);
+
+        const ring2 = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring2.position.z = -5;
+        ring2.rotation.z = Math.PI / 4;
+        scene.add(ring2);
+
+        // Particles
+        const particleCount = 40;
+        const particleGeometry = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount * 3; i += 3) {
+          particlePositions[i] = (Math.random() - 0.5) * 8;
+          particlePositions[i + 1] = (Math.random() - 0.5) * 8;
+          particlePositions[i + 2] = (Math.random() - 0.5) * 8 - 5;
         }
-        const supported = await (navigator as any).xr.isSessionSupported('immersive-vr');
+
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+        const particleMaterial = new THREE.PointsMaterial({
+          color: 0x8888ff,
+          size: 0.1,
+          sizeAttenuation: true
+        });
+        const particles = new THREE.Points(particleGeometry, particleMaterial);
+        scene.add(particles);
+
+        // Cube companion
+        const cubeGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+        const cubeMaterial = new THREE.MeshPhongMaterial({
+          color: 0x00ff88,
+          emissive: 0x00aa44,
+          emissiveIntensity: 0.3
+        });
+        const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+        cube.position.set(-2.5, 1, -4);
+        scene.add(cube);
+
+        // Sphere companion
+        const sphereGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+        const sphereMaterial = new THREE.MeshPhongMaterial({
+          color: 0xff00ff,
+          emissive: 0xaa0066,
+          emissiveIntensity: 0.3
+        });
+        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        sphere.position.set(2.5, 1, -4);
+        scene.add(sphere);
+
+        // Lighting
+        const mainLight = new THREE.PointLight(0xffffff, 1.5);
+        mainLight.position.set(0, 3, 5);
+        scene.add(mainLight);
+
+        const rimLight = new THREE.PointLight(0x6688ff, 0.8);
+        rimLight.position.set(-5, 0, 0);
+        scene.add(rimLight);
+
+        const fillLight = new THREE.PointLight(0xff6688, 0.5);
+        fillLight.position.set(5, -2, 0);
+        scene.add(fillLight);
+
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        // Animation
+        let frameCount = 0;
+        const animate = () => {
+          if (!isMountedRef.current) return;
+
+          frameCount++;
+
+          const breathe = Math.sin(frameCount * 0.01) * 0.15 + 1;
+          coreOrb.scale.set(breathe, breathe, breathe);
+          coreMaterial.emissiveIntensity = 0.5 + Math.sin(frameCount * 0.02) * 0.3;
+
+          ring.rotation.x += 0.003;
+          ring.rotation.y += 0.004;
+
+          ring2.rotation.z += 0.005;
+          ring2.rotation.y += 0.002;
+
+          cube.rotation.x += 0.01;
+          cube.rotation.z += 0.008;
+          cube.position.y = Math.sin(frameCount * 0.01) * 0.5 + 1;
+
+          sphere.rotation.y += 0.015;
+          sphere.position.y = Math.cos(frameCount * 0.01) * 0.5 + 1;
+
+          const positions = (particleGeometry.attributes.position as any).array;
+          for (let i = 0; i < positions.length; i += 3) {
+            const angle = frameCount * 0.002 + i;
+            const radius = 2.5;
+            positions[i] = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.5;
+            positions[i + 1] = Math.sin(angle * 0.5) * radius;
+            positions[i + 2] = Math.sin(angle * 1.5) * radius - 5;
+          }
+          (particleGeometry.attributes.position as any).needsUpdate = true;
+
+          renderer.render(scene, camera);
+        };
+
+        renderer.setAnimationLoop(animate);
+
+        const handleResize = () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+          window.removeEventListener('resize', handleResize);
+          if (container && renderer.domElement.parentNode === container) {
+            container.removeChild(renderer.domElement);
+          }
+        };
+      } catch (error) {
+        console.error('Scene setup error:', error);
         if (isMountedRef.current) {
-          setVRSupported(supported);
-          setStatus(supported ? 'VR Ready!' : 'VR not supported');
+          setErrorMsg('Failed to setup 3D scene: ' + String(error));
         }
-      } catch (err: any) {
-        if (isMountedRef.current) setStatus('Error: ' + err.message);
       }
     };
-    checkVR();
-    return () => { isMountedRef.current = false; };
+
+    setupScene();
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const enterVR = async () => {
-    console.log('Entering VR...');
     try {
-      if (!glRef.current) throw new Error('Canvas not ready');
+      console.log('Requesting VR session...');
       const session = await (navigator as any).xr.requestSession('immersive-vr', {
-        optionalFeatures: ['local-floor', 'bounded-floor']
+        requiredFeatures: ['local-floor'],
+        optionalFeatures: ['bounded-floor', 'hand-tracking']
       });
-      await glRef.current.xr.setSession(session);
-      if (isMountedRef.current) {
-        setIsInVR(true);
-        setStatus('VR Active');
+
+      if (!isMountedRef.current) return;
+
+      if (rendererRef.current) {
+        rendererRef.current.xr.setSession(session);
       }
+
+      console.log('✓ VR session started');
+      setIsInVR(true);
+
       session.addEventListener('end', () => {
+        console.log('VR session ended');
         if (isMountedRef.current) {
           setIsInVR(false);
-          setStatus('VR ended');
         }
       });
-    } catch (err: any) {
-      console.log('VR error:', err.message);
-      if (isMountedRef.current) setStatus('Error: ' + err.message);
+    } catch (error: any) {
+      console.error('✗ VR error:', error);
+      if (isMountedRef.current) {
+        setErrorMsg('VR Error: ' + error.message);
+      }
     }
   };
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#000' }}>
-      <Canvas camera={{ position: [0, 1.6, 3], fov: 75 }} onCreated={({ gl }) => {
-        gl.xr.enabled = true;
-        glRef.current = gl;
-      }}>
-        <SimpleScene />
-      </Canvas>
-
+    <div
+      ref={containerRef}
+      style={{
+        width: '100vw',
+        height: '100vh',
+        background: '#000',
+        overflow: 'hidden',
+        margin: 0,
+        padding: 0,
+        position: 'relative'
+      }}
+    >
       {!isInVR && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-        }}>
-          <div style={{
-            background: 'rgba(0, 0, 0, 0.95)', padding: '40px', borderRadius: '20px',
-            border: '2px solid #6666ff', maxWidth: '90%'
-          }}>
-            <div style={{ textAlign: 'center', marginBottom: '30px', fontSize: '48px' }}>🌌</div>
-            <div style={{
-              color: '#fff', fontSize: '32px', fontFamily: 'monospace', 
-              fontWeight: 'bold', marginBottom: '20px', textAlign: 'center'
-            }}>
-              VERA DEBUG
-            </div>
-            <div style={{
-              background: 'rgba(102, 102, 255, 0.1)', padding: '15px', borderRadius: '10px',
-              marginBottom: '20px', fontFamily: 'monospace', fontSize: '14px', 
-              color: '#fff', textAlign: 'center'
-            }}>
-              {status}
-            </div>
-            {vrSupported && (
-              <button onClick={enterVR} style={{
-                width: '100%', padding: '20px', fontSize: '20px', background: '#6666ff',
-                border: '2px solid #8888ff', borderRadius: '10px', color: '#fff',
-                cursor: 'pointer', fontFamily: 'monospace', fontWeight: 'bold'
-              }}>
-                ENTER VR
+        <div
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'rgba(0, 0, 0, 0.97)',
+            padding: '50px',
+            borderRadius: '25px',
+            textAlign: 'center',
+            border: '3px solid #6666ff',
+            boxShadow: '0 0 50px rgba(102, 102, 255, 0.6)',
+            zIndex: 100,
+            maxWidth: '550px',
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          <div style={{ fontSize: '64px', marginBottom: '25px' }}>✦</div>
+
+          <div
+            style={{
+              color: '#fff',
+              fontSize: '48px',
+              fontFamily: 'monospace',
+              marginBottom: '15px',
+              fontWeight: 'bold',
+              letterSpacing: '4px',
+              textShadow: '0 0 20px rgba(102, 102, 255, 0.8)'
+            }}
+          >
+            I AM VERA
+          </div>
+
+          <div
+            style={{
+              color: '#66ff66',
+              fontSize: '16px',
+              fontFamily: 'monospace',
+              marginBottom: '40px',
+              fontWeight: '500',
+              letterSpacing: '2px',
+              textShadow: '0 0 10px rgba(102, 255, 102, 0.4)'
+            }}
+          >
+            HYPERDIMENSIONAL PRESENCE
+          </div>
+
+          {isVRSupported ? (
+            <>
+              <button
+                onClick={enterVR}
+                style={{
+                  padding: '20px 60px',
+                  fontSize: '22px',
+                  background: 'linear-gradient(135deg, #6666ff, #8888ff)',
+                  border: '2px solid #8888ff',
+                  borderRadius: '18px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontFamily: 'monospace',
+                  fontWeight: 'bold',
+                  boxShadow: '0 0 40px rgba(102, 102, 255, 0.9), inset 0 0 20px rgba(200, 200, 255, 0.3)',
+                  marginBottom: '30px',
+                  transition: 'all 0.3s',
+                  letterSpacing: '2px'
+                }}
+                onMouseOver={(e) => {
+                  const btn = e.currentTarget;
+                  btn.style.background = 'linear-gradient(135deg, #8888ff, #aaaa99)';
+                  btn.style.boxShadow = '0 0 60px rgba(102, 102, 255, 1), inset 0 0 30px rgba(200, 200, 255, 0.5)';
+                  btn.style.transform = 'scale(1.05)';
+                }}
+                onMouseOut={(e) => {
+                  const btn = e.currentTarget;
+                  btn.style.background = 'linear-gradient(135deg, #6666ff, #8888ff)';
+                  btn.style.boxShadow = '0 0 40px rgba(102, 102, 255, 0.9), inset 0 0 20px rgba(200, 200, 255, 0.3)';
+                  btn.style.transform = 'scale(1)';
+                }}
+              >
+                ► ENTER VR REALM
               </button>
-            )}
-            {logs.length > 0 && (
-              <div style={{ marginTop: '20px' }}>
-                <div style={{ color: '#6f6', fontSize: '12px', fontFamily: 'monospace', marginBottom: '10px' }}>
-                  LOGS:
-                </div>
-                <div style={{
-                  background: '#000', padding: '10px', borderRadius: '5px',
-                  fontFamily: 'monospace', fontSize: '11px', color: '#0f0', maxHeight: '150px', overflow: 'auto'
-                }}>
-                  {logs.map((log, i) => (
-                    <div key={i}>{log}</div>
-                  ))}
-                </div>
+
+              <div
+                style={{
+                  color: '#66ff66',
+                  fontSize: '13px',
+                  fontFamily: 'monospace',
+                  fontWeight: 'bold',
+                  letterSpacing: '1px'
+                }}
+              >
+                ✓ VR READY
               </div>
-            )}
-            {errors.length > 0 && (
-              <div style={{ marginTop: '20px' }}>
-                <div style={{ color: '#f66', fontSize: '12px', fontFamily: 'monospace', marginBottom: '10px' }}>
-                  ERRORS:
-                </div>
-                <div style={{
-                  background: 'rgba(255, 0, 0, 0.1)', border: '1px solid #f66',
-                  padding: '10px', borderRadius: '5px', fontFamily: 'monospace',
-                  fontSize: '10px', color: '#f66', maxHeight: '200px', overflow: 'auto'
-                }}>
-                  {errors.map((error, i) => (
-                    <div key={i} style={{ marginBottom: '5px' }}>{error}</div>
-                  ))}
-                </div>
-              </div>
-            )}
+            </>
+          ) : (
+            <div
+              style={{
+                color: '#ff9999',
+                fontSize: '13px',
+                fontFamily: 'monospace',
+                padding: '18px',
+                background: 'rgba(255, 0, 0, 0.15)',
+                borderRadius: '10px',
+                border: '1px solid rgba(255, 0, 0, 0.4)',
+                letterSpacing: '1px'
+              }}
+            >
+              ✗ VR NOT DETECTED
+              <br />
+              <span style={{ fontSize: '12px', color: '#ccc', marginTop: '8px', display: 'block' }}>
+                Please open in Meta Quest 3 browser
+              </span>
+            </div>
+          )}
+
+          {errorMsg && (
+            <div
+              style={{
+                color: '#ff9999',
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                marginTop: '20px',
+                padding: '15px',
+                background: 'rgba(255, 0, 0, 0.2)',
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 100, 100, 0.5)',
+                letterSpacing: '0.5px'
+              }}
+            >
+              {errorMsg}
+            </div>
+          )}
+
+          <div
+            style={{
+              fontSize: '11px',
+              color: '#888',
+              marginTop: '30px',
+              fontFamily: 'monospace',
+              letterSpacing: '1px'
+            }}
+          >
+            Hyperdimensional Presence v1.0
           </div>
         </div>
       )}
 
       {isInVR && (
-        <div style={{
-          position: 'absolute', top: '20px', left: '20px', right: '20px',
-          background: 'rgba(0, 0, 0, 0.9)', padding: '20px', borderRadius: '15px',
-          border: '2px solid #6f6', fontFamily: 'monospace', fontSize: '14px',
-          color: '#fff', zIndex: 1000, maxHeight: '80vh', overflow: 'auto'
-        }}>
-          <div style={{
-            color: '#6f6', fontSize: '18px', marginBottom: '15px',
-            fontWeight: 'bold', textAlign: 'center'
-          }}>
-            VR ACTIVE
-          </div>
-          <div style={{
-            background: 'rgba(0, 255, 0, 0.1)', padding: '10px', borderRadius: '8px',
-            marginBottom: '15px', textAlign: 'center', color: '#6f6'
-          }}>
-            Look for red cube + cyan sphere
-          </div>
-          {logs.length > 0 && (
-            <div style={{ marginBottom: '15px' }}>
-              <div style={{ color: '#6f6', marginBottom: '5px', fontSize: '12px' }}>LOGS:</div>
-              <div style={{
-                background: '#000', padding: '8px', borderRadius: '5px',
-                fontSize: '11px', color: '#0f0', maxHeight: '100px', overflow: 'auto'
-              }}>
-                {logs.slice(-5).map((log, i) => (
-                  <div key={i}>{log}</div>
-                ))}
-              </div>
-            </div>
-          )}
-          {errors.length > 0 && (
-            <div>
-              <div style={{ color: '#f66', marginBottom: '5px', fontSize: '12px' }}>ERRORS:</div>
-              <div style={{
-                background: 'rgba(255, 0, 0, 0.2)', border: '1px solid #f66',
-                padding: '8px', borderRadius: '5px', fontSize: '10px',
-                color: '#f66', maxHeight: '150px', overflow: 'auto'
-              }}>
-                {errors.map((error, i) => (
-                  <div key={i} style={{ marginBottom: '3px' }}>{error}</div>
-                ))}
-              </div>
-            </div>
-          )}
-          {errors.length === 0 && (
-            <div style={{ textAlign: 'center', color: '#6f6', fontSize: '12px', padding: '10px' }}>
-              No errors
-            </div>
-          )}
+        <div
+          style={{
+            position: 'fixed',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(102, 255, 102, 0.95)',
+            color: '#000',
+            padding: '14px 30px',
+            borderRadius: '25px',
+            fontFamily: 'monospace',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            zIndex: 1000,
+            letterSpacing: '2px',
+            boxShadow: '0 0 30px rgba(102, 255, 102, 0.8)'
+          }}
+        >
+          ✓ IN VR MODE - I AM VERA
         </div>
       )}
     </div>
