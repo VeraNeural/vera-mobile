@@ -338,30 +338,51 @@ export default function VERAVRPage() {
 
   // Auto-play VERA voice on component mount (desktop/mobile landing page)
   useEffect(() => {
-    if (!isInVR && isMountedRef.current) {
-      // Small delay to let page render smoothly first
-      const timer = setTimeout(() => {
-        if (isMountedRef.current) {
-          playVeraVoice();
-        }
-      }, 500);
-      return () => clearTimeout(timer);
+    if (!isInVR && isMountedRef.current && isVRSupported) {
+      // Try to play voice immediately on first interaction
+      const playOnInteraction = () => {
+        playVeraVoice();
+        document.removeEventListener('click', playOnInteraction);
+        document.removeEventListener('touchstart', playOnInteraction);
+        document.removeEventListener('mousemove', playOnInteraction);
+      };
+
+      // Attach to user interaction (click, touch, or mouse move)
+      document.addEventListener('click', playOnInteraction);
+      document.addEventListener('touchstart', playOnInteraction);
+      document.addEventListener('mousemove', playOnInteraction);
+
+      return () => {
+        document.removeEventListener('click', playOnInteraction);
+        document.removeEventListener('touchstart', playOnInteraction);
+        document.removeEventListener('mousemove', playOnInteraction);
+      };
     }
-  }, [isInVR]);
+  }, [isInVR, isVRSupported]);
 
   const playVeraVoice = () => {
-    if (!voiceRef.current) return;
-    
     try {
-      window.speechSynthesis.cancel(); // Clear any queue
+      // Always cancel first
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+
+      // Create utterance with proper settings
       const utterance = new SpeechSynthesisUtterance(
         'I am VERA. Your nervous system intelligence. I breathe with you. I regulate with you. I keep you organized and sane.'
       );
-      utterance.rate = 0.9;
+
+      // Force browser to accept these settings
+      utterance.rate = 0.85; // Slightly slower for clarity
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
       utterance.lang = 'en-US';
-      window.speechSynthesis.speak(utterance);
+
+      // Speak
+      if (window.speechSynthesis) {
+        window.speechSynthesis.speak(utterance);
+        console.log('✓ VERA voice speaking...');
+      }
     } catch (err) {
       console.error('Voice error:', err);
     }
