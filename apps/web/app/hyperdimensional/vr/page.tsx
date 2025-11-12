@@ -9,7 +9,9 @@ export default function VERAVRPage() {
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    // Check VR support
+    // Check VR support more thoroughly
+    console.log('Navigator XR available:', typeof navigator !== 'undefined' && 'xr' in navigator);
+    
     if (typeof navigator !== 'undefined' && 'xr' in navigator) {
       (navigator as any).xr.isSessionSupported('immersive-vr')
         .then((supported: boolean) => {
@@ -17,8 +19,18 @@ export default function VERAVRPage() {
           console.log('✅ VR supported:', supported);
         })
         .catch((err: any) => {
-          console.error('VR check failed:', err);
+          console.error('❌ VR check error:', err);
+          setIsVRSupported(false);
         });
+
+      // Also check for other modes
+      (navigator as any).xr.isSessionSupported('inline')
+        .then((supported: boolean) => {
+          console.log('Inline mode supported:', supported);
+        });
+    } else {
+      console.log('❌ WebXR not available in this browser');
+      setErrorMsg('WebXR not available. Make sure you\'re using Quest 3 browser.');
     }
 
     // Dynamic import Three.js to avoid SSR issues
@@ -139,6 +151,9 @@ export default function VERAVRPage() {
         position: 'relative'
       }}
     >
+      {/* Main VR renderer */}
+      {/* 3D content will be rendered here by Three.js */}
+
       {!isInVR && (
         <div
           style={{
@@ -178,6 +193,22 @@ export default function VERAVRPage() {
             }}
           >
             Hyperdimensional VR Experience
+          </div>
+
+          <div
+            style={{
+              color: '#666',
+              fontSize: '11px',
+              fontFamily: 'monospace',
+              marginBottom: '20px',
+              padding: '10px',
+              background: 'rgba(100, 100, 100, 0.1)',
+              borderRadius: '6px'
+            }}
+          >
+            Browser: {typeof navigator !== 'undefined' ? navigator.userAgent.substring(0, 50) : 'Unknown'}
+            <br />
+            WebXR: {'xr' in (navigator as any) ? 'Available' : 'Not Available'}
           </div>
 
           {isVRSupported ? (
