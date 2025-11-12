@@ -50,53 +50,57 @@ export default function VERAVRPage() {
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
         renderer.xr.enabled = true;
         renderer.xr.setFoveation(0);
         rendererRef.current = renderer;
         container.appendChild(renderer.domElement);
 
-        // Single calm glowing orb - VERA presence - positioned higher and further away
-        const orbGeometry = new THREE.SphereGeometry(0.8, 128, 128);
+        // Single calm glowing orb - VERA presence - positioned ABOVE eye level and further away
+        const orbGeometry = new THREE.SphereGeometry(1.0, 256, 256);
         const orbMaterial = new THREE.MeshPhongMaterial({
           color: 0x8899ff,
           emissive: 0x5577dd,
           emissiveIntensity: 0.6,
-          shininess: 80,
-          wireframe: false
+          shininess: 100,
+          wireframe: false,
+          side: THREE.FrontSide
         });
         const orb = new THREE.Mesh(orbGeometry, orbMaterial);
-        orb.position.set(0, 0.8, -4.5);
+        orb.position.set(0, 1.8, -4.5);
         scene.add(orb);
 
-        // Add text display using canvas texture - positioned BELOW orb
+        // Add text display using canvas texture - positioned at eye level
         const canvas = document.createElement('canvas');
-        canvas.width = 1024;
-        canvas.height = 512;
+        canvas.width = 2048;
+        canvas.height = 1024;
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.fillStyle = '#f5f5ff';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
           ctx.fillStyle = '#2c3e50';
-          ctx.font = 'bold 120px "Segoe UI"';
+          ctx.font = 'bold 240px "Segoe UI"';
           ctx.textAlign = 'center';
-          ctx.fillText('I am VERA', canvas.width / 2, 150);
+          ctx.fillText('I am VERA', canvas.width / 2, 350);
 
           ctx.fillStyle = '#5a6c7d';
-          ctx.font = '48px "Segoe UI"';
-          ctx.fillText('Your nervous system intelligence.', canvas.width / 2, 240);
+          ctx.font = '100px "Segoe UI"';
+          ctx.fillText('Your nervous system intelligence.', canvas.width / 2, 530);
 
           ctx.fillStyle = '#6b7d8e';
-          ctx.font = '40px "Segoe UI"';
-          ctx.fillText('I breathe with you. I regulate with you.', canvas.width / 2, 350);
-          ctx.fillText('I keep you organized and sane.', canvas.width / 2, 430);
+          ctx.font = '90px "Segoe UI"';
+          ctx.fillText('I breathe with you. I regulate with you.', canvas.width / 2, 750);
+          ctx.fillText('I keep you organized and sane.', canvas.width / 2, 920);
         }
 
         const texture = new THREE.CanvasTexture(canvas);
+        texture.magFilter = THREE.LinearFilter;
+        texture.minFilter = THREE.LinearFilter;
         const textMaterial = new THREE.MeshBasicMaterial({ map: texture });
-        const textGeometry = new THREE.PlaneGeometry(4, 2);
+        const textGeometry = new THREE.PlaneGeometry(6, 3);
         const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-        textMesh.position.set(0, -0.5, -4.5);
+        textMesh.position.set(0, -0.2, -4.5);
         scene.add(textMesh);
 
         // Soft lighting - mimics the image's gentle glow
@@ -111,18 +115,24 @@ export default function VERAVRPage() {
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
         scene.add(ambientLight);
 
-        // Create interactive buttons in VR - positioned below text
-        const buttonGeometry = new THREE.BoxGeometry(0.6, 0.15, 0.05);
-        const buttonMaterialNormal = new THREE.MeshPhongMaterial({ color: 0x8899ff });
-        const buttonMaterialHover = new THREE.MeshPhongMaterial({ color: 0xaa99ff });
+        // Create interactive buttons in VR - positioned at bottom
+        const buttonGeometry = new THREE.BoxGeometry(0.8, 0.2, 0.05);
+        const buttonMaterialNormal = new THREE.MeshPhongMaterial({ 
+          color: 0x8899ff,
+          side: THREE.FrontSide
+        });
+        const buttonMaterialHover = new THREE.MeshPhongMaterial({ 
+          color: 0xaa99ff,
+          side: THREE.FrontSide
+        });
 
         const enterButton = new THREE.Mesh(buttonGeometry, buttonMaterialNormal);
-        enterButton.position.set(-0.4, -1.5, -4.5);
+        enterButton.position.set(-0.6, -1.3, -4.5);
         enterButton.userData.name = 'enterVR';
         scene.add(enterButton);
 
         const learnButton = new THREE.Mesh(buttonGeometry, buttonMaterialNormal);
-        learnButton.position.set(0.4, -1.5, -4.5);
+        learnButton.position.set(0.6, -1.3, -4.5);
         learnButton.userData.name = 'learn';
         scene.add(learnButton);
 
