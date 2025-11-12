@@ -2,8 +2,8 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 
-export default function VERASimpleTest() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+export default function VERAVRPage() {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isVRSupported, setIsVRSupported] = useState(false);
   const [isInVR, setIsInVR] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -21,51 +21,88 @@ export default function VERASimpleTest() {
         });
     }
 
-    // Setup canvas
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    // Dynamic import Three.js to avoid SSR issues
+    const setupScene = async () => {
+      try {
+        const THREE = await import('three');
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+        const container = containerRef.current;
+        if (!container) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
 
-    // Simple 2D canvas for now - will show colored rectangles
-    ctx.fillStyle = '#0a0a0a';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000
+        );
+        camera.position.z = 5;
 
-    // Draw some UI
-    ctx.fillStyle = '#6666ff';
-    ctx.fillRect(canvas.width / 2 - 100, canvas.height / 2 - 50, 200, 100);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.xr.enabled = true;
+        renderer.xr.setFoveation(0);
+        container.appendChild(renderer.domElement);
 
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 24px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('🌌 VERA', canvas.width / 2, canvas.height / 2 - 10);
-    ctx.font = '14px monospace';
-    ctx.fillText('Tap to Enter VR', canvas.width / 2, canvas.height / 2 + 20);
+        // Create a simple cube
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshPhongMaterial({ color: 0x6666ff });
+        const cube = new THREE.Mesh(geometry, material);
+        cube.position.z = -3;
+        scene.add(cube);
 
-    const handleResize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      ctx.fillStyle = '#0a0a0a';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#6666ff';
-      ctx.fillRect(canvas.width / 2 - 100, canvas.height / 2 - 50, 200, 100);
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 24px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('🌌 VERA', canvas.width / 2, canvas.height / 2 - 10);
-      ctx.font = '14px monospace';
-      ctx.fillText('Tap to Enter VR', canvas.width / 2, canvas.height / 2 + 20);
+        // Add a sphere
+        const sphereGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+        const sphereMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffff });
+        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        sphere.position.set(2, 0, -3);
+        scene.add(sphere);
+
+        // Add lighting
+        const light = new THREE.PointLight(0xffffff, 1);
+        light.position.set(5, 5, 5);
+        scene.add(light);
+
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        // Animation loop
+        const animate = () => {
+          renderer.render(scene, camera);
+
+          // Rotate cube
+          cube.rotation.x += 0.01;
+          cube.rotation.y += 0.01;
+
+          // Rotate sphere
+          sphere.rotation.y += 0.02;
+        };
+
+        renderer.setAnimationLoop(animate);
+
+        // Handle window resize
+        const handleResize = () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+          window.removeEventListener('resize', handleResize);
+          container.removeChild(renderer.domElement);
+        };
+      } catch (error) {
+        console.error('Scene setup error:', error);
+        setErrorMsg('Failed to setup 3D scene: ' + String(error));
+      }
     };
 
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
+    setupScene();
   }, []);
 
   const enterVR = async () => {
@@ -91,6 +128,7 @@ export default function VERASimpleTest() {
 
   return (
     <div
+      ref={containerRef}
       style={{
         width: '100vw',
         height: '100vh',
@@ -101,19 +139,6 @@ export default function VERASimpleTest() {
         position: 'relative'
       }}
     >
-      <canvas
-        ref={canvasRef}
-        style={{
-          display: 'block',
-          width: '100%',
-          height: '100%',
-          position: 'absolute',
-          top: 0,
-          left: 0
-        }}
-        onClick={isVRSupported ? enterVR : undefined}
-      />
-
       {!isInVR && (
         <div
           style={{
@@ -127,8 +152,7 @@ export default function VERASimpleTest() {
             textAlign: 'center',
             border: '2px solid #6666ff',
             zIndex: 100,
-            maxWidth: '500px',
-            pointerEvents: isVRSupported ? 'auto' : 'none'
+            maxWidth: '500px'
           }}
         >
           <div style={{ fontSize: '48px', marginBottom: '20px' }}>🌌</div>
@@ -153,7 +177,7 @@ export default function VERASimpleTest() {
               marginBottom: '30px'
             }}
           >
-            Hyperdimensional Presence
+            Hyperdimensional VR Experience
           </div>
 
           {isVRSupported ? (
@@ -173,16 +197,6 @@ export default function VERASimpleTest() {
                   boxShadow: '0 0 30px rgba(102, 102, 255, 0.8)',
                   marginBottom: '20px',
                   transition: 'all 0.2s'
-                }}
-                onMouseOver={(e) => {
-                  const btn = e.currentTarget;
-                  btn.style.background = '#8888ff';
-                  btn.style.boxShadow = '0 0 50px rgba(102, 102, 255, 1)';
-                }}
-                onMouseOut={(e) => {
-                  const btn = e.currentTarget;
-                  btn.style.background = '#6666ff';
-                  btn.style.boxShadow = '0 0 30px rgba(102, 102, 255, 0.8)';
                 }}
               >
                 🥽 ENTER VR
