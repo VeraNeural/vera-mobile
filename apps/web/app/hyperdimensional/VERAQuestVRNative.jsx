@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 
 // Import sacred geometry
 import {
@@ -432,47 +431,43 @@ export default function VERAQuestVRNative() {
     if ('xr' in navigator) {
       navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
         setIsVRSupported(supported);
-      });
+      }).catch(() => setIsVRSupported(false));
     }
   }, []);
 
-  useEffect(() => {
-    // Add VR button when canvas is ready
-    if (canvasRef.current && isVRSupported) {
-      const canvas = canvasRef.current.querySelector('canvas');
-      if (canvas) {
-        const vrButton = VRButton.createButton(canvas.getContext('webgl2'));
-        vrButton.style.position = 'fixed';
-        vrButton.style.bottom = '50%';
-        vrButton.style.left = '50%';
-        vrButton.style.transform = 'translate(-50%, 50%)';
-        vrButton.style.padding = '20px 40px';
-        vrButton.style.fontSize = '18px';
-        vrButton.style.background = '#6666ff';
-        vrButton.style.border = 'none';
-        vrButton.style.borderRadius = '10px';
-        vrButton.style.color = '#fff';
-        vrButton.style.cursor = 'pointer';
-        vrButton.style.fontFamily = 'monospace';
-        vrButton.style.zIndex = '1000';
-        
-        document.body.appendChild(vrButton);
-        
-        return () => {
-          if (document.body.contains(vrButton)) {
-            document.body.removeChild(vrButton);
-          }
-        };
+  const handleEnterVR = async () => {
+    try {
+      const canvas = canvasRef.current?.querySelector('canvas');
+      if (!canvas) return;
+
+      const gl = canvas.getContext('webgl2');
+      if (!gl) return;
+
+      const session = await navigator.xr.requestSession('immersive-vr', {
+        optionalFeatures: ['hand-tracking', 'dom-overlay'],
+        domOverlay: { root: document.body }
+      });
+
+      if (session) {
+        await gl.makeXRCompatible?.();
       }
+    } catch (error) {
+      console.error('VR session error:', error);
     }
-  }, [isVRSupported, canvasRef.current]);
+  };
 
   return (
     <div ref={canvasRef} style={{ width: '100vw', height: '100vh', background: '#000' }}>
       <Canvas 
         camera={{ position: [0, 1.6, 0], fov: 60 }}
+        gl={{ 
+          antialias: true,
+          alpha: true,
+          xrCompatible: true 
+        }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
+          gl.setClearColor(0x000000);
         }}
       >
         <VERAVRScene 
@@ -481,7 +476,39 @@ export default function VERAQuestVRNative() {
         />
       </Canvas>
 
-      {!isVRSupported && (
+      {isVRSupported ? (
+        <button
+          onClick={handleEnterVR}
+          style={{
+            position: 'fixed',
+            bottom: 'calc(50% - 30px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '20px 40px',
+            fontSize: '18px',
+            fontWeight: 'bold',
+            background: 'linear-gradient(135deg, #6666ff, #aa33ff)',
+            border: '2px solid #fff',
+            borderRadius: '50px',
+            color: '#fff',
+            cursor: 'pointer',
+            fontFamily: 'monospace',
+            zIndex: '1000',
+            boxShadow: '0 0 30px rgba(102, 102, 255, 0.6)',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.boxShadow = '0 0 50px rgba(170, 51, 255, 0.8)';
+            e.target.style.transform = 'translateX(-50%) scale(1.05)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.boxShadow = '0 0 30px rgba(102, 102, 255, 0.6)';
+            e.target.style.transform = 'translateX(-50%) scale(1)';
+          }}
+        >
+          🥽 Enter VR
+        </button>
+      ) : (
         <div style={{
           position: 'absolute',
           top: '50%',
@@ -494,16 +521,17 @@ export default function VERAQuestVRNative() {
           background: 'rgba(0,0,0,0.8)',
           padding: '40px',
           borderRadius: '10px',
-          maxWidth: '500px'
+          maxWidth: '500px',
+          border: '2px solid #6666ff'
         }}>
           <div style={{ fontSize: '24px', marginBottom: '20px' }}>
             🌌 VERA - Hyperdimensional Presence
           </div>
           <div style={{ opacity: 0.7, marginBottom: '20px' }}>
-            VR not detected
+            VR not detected on this device
           </div>
           <div style={{ fontSize: '14px', opacity: 0.6 }}>
-            Open this page on Quest 3 browser for VR experience
+            Open this page on Meta Quest 3 browser for the full immersive experience
           </div>
         </div>
       )}
