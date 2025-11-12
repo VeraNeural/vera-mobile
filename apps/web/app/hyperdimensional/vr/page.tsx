@@ -9,9 +9,11 @@ export default function VERAVRPage() {
   const [isInVR, setIsInVR] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const isMountedRef = useRef(true);
+  const voiceRef = useRef<SpeechSynthesis | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
+    voiceRef.current = window.speechSynthesis;
 
     // Check VR support
     if (typeof navigator !== 'undefined' && 'xr' in navigator) {
@@ -53,7 +55,7 @@ export default function VERAVRPage() {
         rendererRef.current = renderer;
         container.appendChild(renderer.domElement);
 
-        // Single calm glowing orb - VERA presence - positioned high and centered
+        // Single calm glowing orb - VERA presence - positioned higher and further away
         const orbGeometry = new THREE.SphereGeometry(0.8, 128, 128);
         const orbMaterial = new THREE.MeshPhongMaterial({
           color: 0x8899ff,
@@ -63,7 +65,7 @@ export default function VERAVRPage() {
           wireframe: false
         });
         const orb = new THREE.Mesh(orbGeometry, orbMaterial);
-        orb.position.set(0, 1.2, -2.5);
+        orb.position.set(0, 0.8, -4.5);
         scene.add(orb);
 
         // Add text display using canvas texture - positioned BELOW orb
@@ -94,7 +96,7 @@ export default function VERAVRPage() {
         const textMaterial = new THREE.MeshBasicMaterial({ map: texture });
         const textGeometry = new THREE.PlaneGeometry(4, 2);
         const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-        textMesh.position.set(0, -0.8, -3);
+        textMesh.position.set(0, -0.5, -4.5);
         scene.add(textMesh);
 
         // Soft lighting - mimics the image's gentle glow
@@ -115,12 +117,12 @@ export default function VERAVRPage() {
         const buttonMaterialHover = new THREE.MeshPhongMaterial({ color: 0xaa99ff });
 
         const enterButton = new THREE.Mesh(buttonGeometry, buttonMaterialNormal);
-        enterButton.position.set(-0.4, -1.8, -2.5);
+        enterButton.position.set(-0.4, -1.5, -4.5);
         enterButton.userData.name = 'enterVR';
         scene.add(enterButton);
 
         const learnButton = new THREE.Mesh(buttonGeometry, buttonMaterialNormal);
-        learnButton.position.set(0.4, -1.8, -2.5);
+        learnButton.position.set(0.4, -1.5, -4.5);
         learnButton.userData.name = 'learn';
         scene.add(learnButton);
 
@@ -241,8 +243,21 @@ export default function VERAVRPage() {
       console.log('✓ VR session started');
       setIsInVR(true);
 
+      // VERA speaks when entering VR
+      if (voiceRef.current) {
+        window.speechSynthesis.cancel(); // Clear any previous speech
+        const utterance = new SpeechSynthesisUtterance(
+          'I am VERA. Your nervous system intelligence. I breathe with you. I regulate with you. I keep you organized and sane.'
+        );
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        utterance.volume = 0.9;
+        window.speechSynthesis.speak(utterance);
+      }
+
       session.addEventListener('end', () => {
         console.log('VR session ended');
+        window.speechSynthesis.cancel();
         if (isMountedRef.current) {
           setIsInVR(false);
         }
@@ -380,6 +395,16 @@ export default function VERAVRPage() {
               </button>
 
               <button
+                onClick={() => {
+                  window.speechSynthesis.cancel();
+                  const utterance = new SpeechSynthesisUtterance(
+                    'I am VERA. Your nervous system intelligence. I breathe with you. I regulate with you. I keep you organized and sane.'
+                  );
+                  utterance.rate = 0.9;
+                  utterance.pitch = 1;
+                  utterance.volume = 0.9;
+                  window.speechSynthesis.speak(utterance);
+                }}
                 style={{
                   padding: '14px 50px',
                   fontSize: '16px',
@@ -391,7 +416,8 @@ export default function VERAVRPage() {
                   fontFamily: '"Segoe UI", sans-serif',
                   fontWeight: '600',
                   transition: 'all 0.3s',
-                  letterSpacing: '0.5px'
+                  letterSpacing: '0.5px',
+                  marginLeft: '15px'
                 }}
                 onMouseOver={(e) => {
                   const btn = e.currentTarget;
@@ -402,7 +428,7 @@ export default function VERAVRPage() {
                   btn.style.background = 'transparent';
                 }}
               >
-                Learn
+                🔊 Hear VERA
               </button>
 
               <div
