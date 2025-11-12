@@ -1,7 +1,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import type { ComponentType } from 'react';
+import { CollaboratorsNetwork } from '../(components)/CollaboratorsNetwork';
+import { ResearchDashboard } from '../(components)/ResearchDashboard';
+import { BiometricsInsights } from '../(components)/BiometricsInsights';
 
 interface LaboratorySceneProps {
   vagalTone?: number;
@@ -26,6 +28,7 @@ const LaboratoryScene = dynamic<LaboratorySceneProps>(
 
 export default function LaboratoryPage() {
   const [isEntering, setIsEntering] = useState(false);
+  const [activePanel, setActivePanel] = useState<'collaborators' | 'research' | 'biometrics' | null>(null);
   const [vagalTone, setVagalTone] = useState(50);
   const [heartCoherence, setHeartCoherence] = useState(60);
   const [nervousSystemState, setNervousSystemState] = useState<'ventral' | 'sympathetic' | 'dorsal'>('ventral');
@@ -133,6 +136,70 @@ export default function LaboratoryPage() {
         <p className="text-xs text-purple-300 mt-4">
           Desktop: Use mouse to orbit • VR: Fully immersive experience
         </p>
+
+        {/* Action Panels */}
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+          {/* Collaborators Panel */}
+          <button
+            onClick={() => setActivePanel(activePanel === 'collaborators' ? null : 'collaborators')}
+            className={`p-6 rounded-lg border transition-all duration-300 text-left ${
+              activePanel === 'collaborators'
+                ? 'bg-blue-900/30 border-blue-500 scale-105'
+                : 'bg-gray-900/30 border-gray-700 hover:border-blue-500/50'
+            }`}
+          >
+            <div className="text-4xl mb-3">👥</div>
+            <div className="text-white font-light">Collaborators</div>
+            <div className="text-xs text-gray-400 mt-1">Team sync • Lab insights • Network</div>
+            <div className="text-xs text-gray-500 mt-3">30 mins • 11:30am</div>
+          </button>
+
+          {/* Research Panel */}
+          <button
+            onClick={() => setActivePanel(activePanel === 'research' ? null : 'research')}
+            className={`p-6 rounded-lg border transition-all duration-300 text-left ${
+              activePanel === 'research'
+                ? 'bg-cyan-900/30 border-cyan-500 scale-105'
+                : 'bg-gray-900/30 border-gray-700 hover:border-cyan-500/50'
+            }`}
+          >
+            <div className="text-4xl mb-3">📊</div>
+            <div className="text-white font-light">Research</div>
+            <div className="text-xs text-gray-400 mt-1">Papers • Data • Experiments</div>
+            <div className="text-xs text-gray-500 mt-3">Deep focus • Now</div>
+          </button>
+
+          {/* Biometrics Panel */}
+          <button
+            onClick={() => setActivePanel(activePanel === 'biometrics' ? null : 'biometrics')}
+            className={`p-6 rounded-lg border transition-all duration-300 text-left ${
+              activePanel === 'biometrics'
+                ? 'bg-pink-900/30 border-pink-500 scale-105'
+                : 'bg-gray-900/30 border-gray-700 hover:border-pink-500/50'
+            }`}
+          >
+            <div className="text-4xl mb-3">💓</div>
+            <div className="text-white font-light">Biometrics</div>
+            <div className="text-xs text-gray-400 mt-1">HRV • State • Insights</div>
+            <div className="text-xs text-gray-500 mt-3">Your nervous system • Real-time</div>
+          </button>
+        </div>
+
+        {/* Expanded Panel Content */}
+        {activePanel && (
+          <div className="mt-8 p-8 rounded-lg bg-gradient-to-br from-gray-900/50 to-gray-800/50 border border-gray-700/50 max-w-2xl mx-auto">
+            <button
+              onClick={() => setActivePanel(null)}
+              className="float-right text-gray-400 hover:text-white text-xl"
+            >
+              ✕
+            </button>
+            
+            {activePanel === 'collaborators' && <CollaboratorsNetwork />}
+            {activePanel === 'research' && <ResearchDashboard />}
+            {activePanel === 'biometrics' && <BiometricsInsights />}
+          </div>
+        )}
       </div>
     </main>
   );
