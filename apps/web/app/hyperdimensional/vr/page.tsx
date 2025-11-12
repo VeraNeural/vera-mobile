@@ -52,8 +52,8 @@ export default function VERAVRPage() {
 
         // ===== PREMIUM SCENE SETUP =====
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xf5f5ff);
-        scene.fog = new THREE.Fog(0xf5f5ff, 15, 30);
+        scene.background = new THREE.Color(0x0a0a1a); // Dark navy/black for dramatic effect
+        scene.fog = new THREE.Fog(0x0a0a1a, 15, 30);
 
         const camera = new THREE.PerspectiveCamera(
           90,
@@ -99,17 +99,17 @@ export default function VERAVRPage() {
         scene.add(softLight2);
 
         // ===== PREMIUM ORB (VERA PRESENCE) =====
-        const orbGeometry = new THREE.IcosahedronGeometry(1.0, 6);
+        const orbGeometry = new THREE.IcosahedronGeometry(2.5, 6); // LARGER: 2.5x size
         const orbMaterial = new THREE.MeshPhongMaterial({
           color: 0x8899ff,
           emissive: 0x5577dd,
-          emissiveIntensity: 0.7,
+          emissiveIntensity: 0.8,
           shininess: 120,
           wireframe: false,
           side: THREE.FrontSide
         });
         const orb = new THREE.Mesh(orbGeometry, orbMaterial);
-        orb.position.set(0, 1.2, -6.5); // Much further away to prevent text cutoff
+        orb.position.set(0, 0.5, -4.0); // CLOSER: -4.0 instead of -6.5
         orb.castShadow = true;
         orb.receiveShadow = true;
         scene.add(orb);
@@ -182,12 +182,12 @@ export default function VERAVRPage() {
             emissive: new THREE.Color(0xffffff),
             emissiveIntensity: 0.1,
             transparent: true,
-            opacity: 0 // Start invisible for fade-in
+            opacity: 1.0 // INSTANTLY VISIBLE - no fade-in
           });
 
-          const textGeometry = new THREE.PlaneGeometry(10, 5);
+          const textGeometry = new THREE.PlaneGeometry(12, 6); // LARGER plane
           textMesh = new THREE.Mesh(textGeometry, textMaterial);
-          textMesh.position.set(0, 0, -6.5); // Match orb distance and center vertically
+          textMesh.position.set(0, 0, -3.5); // OVERLAID on orb for depth
           textMesh.receiveShadow = true;
           scene.add(textMesh);
         }
@@ -265,11 +265,7 @@ export default function VERAVRPage() {
 
           frameCount++;
 
-          // Smooth text fade-in (takes about 4 seconds at 60fps)
-          if (textMesh && frameCount < 240) {
-            const fadeProgress = Math.min(frameCount / 240, 1);
-            (textMesh.material as any).opacity = fadeProgress;
-          }
+          // Text is now instantly visible - no fade animation needed
 
           // Smooth breathing animation
           const breathPhase = Math.sin(frameCount * 0.004) * 0.04 + 1;
@@ -365,6 +361,7 @@ export default function VERAVRPage() {
       // Always cancel first
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
+        console.log('✓ VERA voice START');
       }
 
       // Create utterance with proper settings
@@ -375,16 +372,28 @@ export default function VERAVRPage() {
       // Force browser to accept these settings
       utterance.rate = 0.85; // Slightly slower for clarity
       utterance.pitch = 1.0;
-      utterance.volume = 1.0;
+      utterance.volume = 1.0; // FULL VOLUME
       utterance.lang = 'en-US';
+
+      // Log settings to console
+      console.log('✓ Rate: 0.85');
+      console.log('✓ Volume: 1.0 (FULL)');
+      console.log('✓ Language: en-US');
 
       // Speak
       if (window.speechSynthesis) {
         window.speechSynthesis.speak(utterance);
-        console.log('✓ VERA voice speaking...');
+        
+        utterance.onend = () => {
+          console.log('✓ VERA voice END');
+        };
+        
+        utterance.onerror = (error) => {
+          console.error('✗ Voice error:', error.error);
+        };
       }
     } catch (err) {
-      console.error('Voice error:', err);
+      console.error('✗ Voice exception:', err);
     }
   };
 
@@ -517,67 +526,68 @@ export default function VERAVRPage() {
                     onClick={enterVR}
                     className="vera-button"
                     style={{
-                      padding: '14px 50px',
-                      fontSize: '16px',
-                      fontWeight: '600',
+                      padding: '18px 50px',
+                      fontSize: '18px',
+                      fontWeight: '700',
                       background: 'linear-gradient(135deg, #aa66ff 0%, #dd77ff 100%)',
                       border: 'none',
                       borderRadius: '50px',
                       color: '#fff',
                       cursor: 'pointer',
-                      boxShadow: '0 8px 25px rgba(170, 102, 255, 0.4)',
+                      boxShadow: '0 10px 30px rgba(170, 102, 255, 0.5)',
                       transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                      letterSpacing: '1px',
+                      letterSpacing: '1.5px',
                       textTransform: 'uppercase',
                       position: 'relative',
                       overflow: 'hidden',
-                      marginRight: '12px'
+                      width: '100%',
+                      maxWidth: '500px'
                     }}
                     onMouseOver={(e) => {
                       const btn = e.currentTarget;
-                      btn.style.boxShadow = '0 12px 35px rgba(170, 102, 255, 0.6)';
-                      btn.style.transform = 'scale(1.05)';
+                      btn.style.boxShadow = '0 15px 40px rgba(170, 102, 255, 0.7)';
+                      btn.style.transform = 'scale(1.02)';
                     }}
                     onMouseOut={(e) => {
                       const btn = e.currentTarget;
-                      btn.style.boxShadow = '0 8px 25px rgba(170, 102, 255, 0.4)';
+                      btn.style.boxShadow = '0 10px 30px rgba(170, 102, 255, 0.5)';
                       btn.style.transform = 'scale(1)';
                     }}
                   >
-                    Enter VERA
+                    → Enter VERA VR
                   </button>
 
                   <button
                     onClick={() => playVeraVoice()}
                     className="vera-button"
                     style={{
-                      padding: '14px 40px',
-                      fontSize: '16px',
+                      padding: '12px 30px',
+                      fontSize: '14px',
                       fontWeight: '600',
-                      background: 'rgba(170, 102, 255, 0.15)',
+                      background: 'rgba(170, 102, 255, 0.1)',
                       border: '2px solid #aa66ff',
                       borderRadius: '50px',
                       color: '#dd77ff',
                       cursor: 'pointer',
-                      boxShadow: '0 4px 15px rgba(170, 102, 255, 0.2)',
+                      boxShadow: '0 4px 15px rgba(170, 102, 255, 0.15)',
                       transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                       letterSpacing: '0.5px',
                       position: 'relative',
                       overflow: 'hidden',
-                      marginLeft: '12px'
+                      marginTop: '12px'
                     }}
                     onMouseOver={(e) => {
                       const btn = e.currentTarget;
-                      btn.style.background = 'rgba(170, 102, 255, 0.25)';
-                      btn.style.boxShadow = '0 6px 20px rgba(170, 102, 255, 0.3)';
+                      btn.style.background = 'rgba(170, 102, 255, 0.2)';
+                      btn.style.boxShadow = '0 6px 20px rgba(170, 102, 255, 0.25)';
                     }}
                     onMouseOut={(e) => {
                       const btn = e.currentTarget;
-                      btn.style.background = 'rgba(170, 102, 255, 0.15)';
-                      btn.style.boxShadow = '0 4px 15px rgba(170, 102, 255, 0.2)';
+                      btn.style.background = 'rgba(170, 102, 255, 0.1)';
+                      btn.style.boxShadow = '0 4px 15px rgba(170, 102, 255, 0.15)';
                     }}
                   >
-                    🔊 VERA
+                    🔊 Hear VERA Speak
                   </button>
                 </>
               ) : (
