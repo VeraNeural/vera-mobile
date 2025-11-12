@@ -512,38 +512,74 @@ export default function VERAVRPage() {
 
               {/* Action Button */}
               {isVRSupported ? (
-                <button
-                  onClick={enterVR}
-                  className="vera-button"
-                  style={{
-                    padding: '14px 50px',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    background: 'linear-gradient(135deg, #aa66ff 0%, #dd77ff 100%)',
-                    border: 'none',
-                    borderRadius: '50px',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    boxShadow: '0 8px 25px rgba(170, 102, 255, 0.4)',
-                    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    letterSpacing: '1px',
-                    textTransform: 'uppercase',
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}
-                  onMouseOver={(e) => {
-                    const btn = e.currentTarget;
-                    btn.style.boxShadow = '0 12px 35px rgba(170, 102, 255, 0.6)';
-                    btn.style.transform = 'scale(1.05)';
-                  }}
-                  onMouseOut={(e) => {
-                    const btn = e.currentTarget;
-                    btn.style.boxShadow = '0 8px 25px rgba(170, 102, 255, 0.4)';
-                    btn.style.transform = 'scale(1)';
-                  }}
-                >
-                  Enter VERA
-                </button>
+                <>
+                  <button
+                    onClick={enterVR}
+                    className="vera-button"
+                    style={{
+                      padding: '14px 50px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      background: 'linear-gradient(135deg, #aa66ff 0%, #dd77ff 100%)',
+                      border: 'none',
+                      borderRadius: '50px',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      boxShadow: '0 8px 25px rgba(170, 102, 255, 0.4)',
+                      transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                      letterSpacing: '1px',
+                      textTransform: 'uppercase',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      marginRight: '12px'
+                    }}
+                    onMouseOver={(e) => {
+                      const btn = e.currentTarget;
+                      btn.style.boxShadow = '0 12px 35px rgba(170, 102, 255, 0.6)';
+                      btn.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseOut={(e) => {
+                      const btn = e.currentTarget;
+                      btn.style.boxShadow = '0 8px 25px rgba(170, 102, 255, 0.4)';
+                      btn.style.transform = 'scale(1)';
+                    }}
+                  >
+                    Enter VERA
+                  </button>
+
+                  <button
+                    onClick={() => playVeraVoice()}
+                    className="vera-button"
+                    style={{
+                      padding: '14px 40px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      background: 'rgba(170, 102, 255, 0.15)',
+                      border: '2px solid #aa66ff',
+                      borderRadius: '50px',
+                      color: '#dd77ff',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 15px rgba(170, 102, 255, 0.2)',
+                      transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                      letterSpacing: '0.5px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      marginLeft: '12px'
+                    }}
+                    onMouseOver={(e) => {
+                      const btn = e.currentTarget;
+                      btn.style.background = 'rgba(170, 102, 255, 0.25)';
+                      btn.style.boxShadow = '0 6px 20px rgba(170, 102, 255, 0.3)';
+                    }}
+                    onMouseOut={(e) => {
+                      const btn = e.currentTarget;
+                      btn.style.background = 'rgba(170, 102, 255, 0.15)';
+                      btn.style.boxShadow = '0 4px 15px rgba(170, 102, 255, 0.2)';
+                    }}
+                  >
+                    🔊 VERA
+                  </button>
+                </>
               ) : (
                 <div
                   style={{
