@@ -2,9 +2,3 @@
 > @vera-mobile/ui@0.1.0 build C:\vera-mobile\packages\ui
 > tsup src/index.tsx --format cjs,esm --dts
 
-[34mCLI[39m Building entry: src/index.tsx
-[34mCLI[39m Using tsconfig: tsconfig.json
-[34mCLI[39m tsup v7.3.0
-[34mCLI[39m Target: es2021
-[34mCJS[39m Build start
-[34mESM[39m Build start

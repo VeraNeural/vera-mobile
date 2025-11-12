@@ -2,17 +2,31 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 
+interface VRSceneRefs {
+  scene: any;
+  orb: any;
+  orbMaterial: any;
+  buttons: any[];
+  raycaster: any;
+  controller1: any;
+  controller2: any;
+}
+
 export default function VERAVRPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<any>(null);
+  const sceneRefsRef = useRef<VRSceneRefs | null>(null);
   const [isVRSupported, setIsVRSupported] = useState(false);
   const [isInVR, setIsInVR] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [vrStatus, setVrStatus] = useState('');
   const isMountedRef = useRef(true);
   const voiceRef = useRef<SpeechSynthesis | null>(null);
+  const hasSpokenRef = useRef(false);
 
   useEffect(() => {
     isMountedRef.current = true;
+    hasSpokenRef.current = false;
     voiceRef.current = window.speechSynthesis;
 
     // Check VR support
@@ -22,11 +36,10 @@ export default function VERAVRPage() {
         .then((supported: boolean) => {
           if (isMountedRef.current) {
             setIsVRSupported(supported);
-            console.log('✓ VR supported:', supported);
           }
         })
-        .catch((err: any) => {
-          console.error('VR check failed:', err);
+        .catch(() => {
+          setIsVRSupported(false);
         });
     }
 
@@ -37,106 +50,178 @@ export default function VERAVRPage() {
         const container = containerRef.current;
         if (!container || !isMountedRef.current) return;
 
+        // ===== PREMIUM SCENE SETUP =====
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xf5f5ff);
+        scene.fog = new THREE.Fog(0xf5f5ff, 15, 30);
 
         const camera = new THREE.PerspectiveCamera(
-          75,
+          90,
           window.innerWidth / window.innerHeight,
           0.1,
           1000
         );
-        camera.position.z = 5;
+        camera.position.z = 0;
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        const renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          alpha: true,
+          precision: 'highp',
+          powerPreference: 'high-performance'
+        });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.xr.enabled = true;
         renderer.xr.setFoveation(0);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFShadowMap;
         rendererRef.current = renderer;
         container.appendChild(renderer.domElement);
 
-        // Single calm glowing orb - VERA presence - positioned ABOVE eye level and further away
-        const orbGeometry = new THREE.SphereGeometry(1.0, 256, 256);
+        // ===== PREMIUM LIGHTING SETUP =====
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+
+        const mainLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        mainLight.position.set(5, 5, 5);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 2048;
+        mainLight.shadow.mapSize.height = 2048;
+        mainLight.shadow.camera.far = 20;
+        scene.add(mainLight);
+
+        const softLight1 = new THREE.PointLight(0xb8a8ff, 0.6);
+        softLight1.position.set(-4, 2, 2);
+        scene.add(softLight1);
+
+        const softLight2 = new THREE.PointLight(0xa8c8ff, 0.4);
+        softLight2.position.set(4, -2, 2);
+        scene.add(softLight2);
+
+        // ===== PREMIUM ORB (VERA PRESENCE) =====
+        const orbGeometry = new THREE.IcosahedronGeometry(1.0, 6);
         const orbMaterial = new THREE.MeshPhongMaterial({
           color: 0x8899ff,
           emissive: 0x5577dd,
-          emissiveIntensity: 0.6,
-          shininess: 100,
+          emissiveIntensity: 0.7,
+          shininess: 120,
           wireframe: false,
           side: THREE.FrontSide
         });
         const orb = new THREE.Mesh(orbGeometry, orbMaterial);
-        orb.position.set(0, 1.8, -4.5);
+        orb.position.set(0, 1.5, -3.5);
+        orb.castShadow = true;
+        orb.receiveShadow = true;
         scene.add(orb);
 
-        // Add text display using canvas texture - positioned at eye level
-        const canvas = document.createElement('canvas');
-        canvas.width = 2048;
-        canvas.height = 1024;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
+        // Add subtle glow effect to orb
+        const glowGeometry = new THREE.IcosahedronGeometry(1.05, 6);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: 0x6688dd,
+          transparent: true,
+          opacity: 0.2,
+          side: THREE.BackSide
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        glow.position.copy(orb.position);
+        scene.add(glow);
+
+        // ===== PREMIUM TEXT RENDERING =====
+        const createHighQualityText = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 4096;
+          canvas.height = 2048;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return null;
+
+          // High quality rendering
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+
+          // Background
           ctx.fillStyle = '#f5f5ff';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+          // Title: "I am VERA"
           ctx.fillStyle = '#2c3e50';
-          ctx.font = 'bold 240px "Segoe UI"';
+          ctx.font = 'bold 360px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText('I am VERA', canvas.width / 2, 350);
+          ctx.fillText('I am VERA', canvas.width / 2, 500);
 
+          // Purple accent on VERA
+          ctx.fillStyle = '#b366cc';
+          ctx.textAlign = 'center';
+          ctx.font = 'bold 360px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+          
+          // Subtitle
           ctx.fillStyle = '#5a6c7d';
-          ctx.font = '100px "Segoe UI"';
-          ctx.fillText('Your nervous system intelligence.', canvas.width / 2, 530);
+          ctx.font = '140px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('Your nervous system intelligence.', canvas.width / 2, 850);
 
+          // Body text
           ctx.fillStyle = '#6b7d8e';
-          ctx.font = '90px "Segoe UI"';
-          ctx.fillText('I breathe with you. I regulate with you.', canvas.width / 2, 750);
-          ctx.fillText('I keep you organized and sane.', canvas.width / 2, 920);
+          ctx.font = '130px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('I breathe with you. I regulate with you.', canvas.width / 2, 1250);
+          ctx.fillText('I keep you organized and sane.', canvas.width / 2, 1550);
+
+          return canvas;
+        };
+
+        const textCanvas = createHighQualityText();
+        if (textCanvas) {
+          const texture = new THREE.CanvasTexture(textCanvas);
+          texture.magFilter = THREE.LinearFilter;
+          texture.minFilter = THREE.LinearMipmapLinearFilter;
+          texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+          const textMaterial = new THREE.MeshStandardMaterial({
+            map: texture,
+            emissive: new THREE.Color(0xffffff),
+            emissiveIntensity: 0.1
+          });
+
+          const textGeometry = new THREE.PlaneGeometry(8, 4);
+          const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+          textMesh.position.set(0, -0.3, -3.5);
+          textMesh.receiveShadow = true;
+          scene.add(textMesh);
         }
 
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.magFilter = THREE.LinearFilter;
-        texture.minFilter = THREE.LinearFilter;
-        const textMaterial = new THREE.MeshBasicMaterial({ map: texture });
-        const textGeometry = new THREE.PlaneGeometry(6, 3);
-        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-        textMesh.position.set(0, -0.2, -4.5);
-        scene.add(textMesh);
+        // ===== PREMIUM INTERACTIVE BUTTONS =====
+        const buttonGroup = new THREE.Group();
+        buttonGroup.position.z = -3.5;
+        scene.add(buttonGroup);
 
-        // Soft lighting - mimics the image's gentle glow
-        const mainLight = new THREE.PointLight(0xffffff, 1.2);
-        mainLight.position.set(2, 2, 3);
-        scene.add(mainLight);
-
-        const softLight = new THREE.PointLight(0xb8a8ff, 0.8);
-        softLight.position.set(-3, -1, 2);
-        scene.add(softLight);
-
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-        scene.add(ambientLight);
-
-        // Create interactive buttons in VR - positioned at bottom
-        const buttonGeometry = new THREE.BoxGeometry(0.8, 0.2, 0.05);
-        const buttonMaterialNormal = new THREE.MeshPhongMaterial({ 
+        const buttonGeometry = new THREE.BoxGeometry(1.0, 0.25, 0.08);
+        const buttonMaterialActive = new THREE.MeshPhongMaterial({
           color: 0x8899ff,
-          side: THREE.FrontSide
+          shininess: 60,
+          emissive: 0x5577dd,
+          emissiveIntensity: 0.3
         });
-        const buttonMaterialHover = new THREE.MeshPhongMaterial({ 
+        const buttonMaterialHover = new THREE.MeshPhongMaterial({
           color: 0xaa99ff,
-          side: THREE.FrontSide
+          shininess: 80,
+          emissive: 0x8877ff,
+          emissiveIntensity: 0.5
         });
 
-        const enterButton = new THREE.Mesh(buttonGeometry, buttonMaterialNormal);
-        enterButton.position.set(-0.6, -1.3, -4.5);
-        enterButton.userData.name = 'enterVR';
-        scene.add(enterButton);
+        const enterButton = new THREE.Mesh(buttonGeometry, buttonMaterialActive.clone());
+        enterButton.position.set(-0.75, -1.4, 0);
+        enterButton.castShadow = true;
+        enterButton.receiveShadow = true;
+        enterButton.userData = { name: 'enter', hovered: false };
+        buttonGroup.add(enterButton);
 
-        const learnButton = new THREE.Mesh(buttonGeometry, buttonMaterialNormal);
-        learnButton.position.set(0.6, -1.3, -4.5);
-        learnButton.userData.name = 'learn';
-        scene.add(learnButton);
+        const learnButton = new THREE.Mesh(buttonGeometry, buttonMaterialActive.clone());
+        learnButton.position.set(0.75, -1.4, 0);
+        learnButton.castShadow = true;
+        learnButton.receiveShadow = true;
+        learnButton.userData = { name: 'learn', hovered: false };
+        buttonGroup.add(learnButton);
 
-        // Store buttons for interaction
         const buttons = [enterButton, learnButton];
         const raycaster = new THREE.Raycaster();
         const controller1 = renderer.xr.getController(0);
@@ -144,61 +229,67 @@ export default function VERAVRPage() {
         scene.add(controller1);
         scene.add(controller2);
 
-        let selectedButton: any = null;
-
-        controller1.addEventListener('selectstart', () => {
-          raycaster.setFromXRController(controller1);
+        // Controller interaction
+        const onSelectStart = (controller: any) => {
+          raycaster.setFromXRController(controller);
           const intersects = raycaster.intersectObjects(buttons);
           if (intersects.length > 0) {
-            selectedButton = intersects[0].object.userData.name;
-            handleButtonPress(selectedButton);
-          }
-        });
-
-        controller2.addEventListener('selectstart', () => {
-          raycaster.setFromXRController(controller2);
-          const intersects = raycaster.intersectObjects(buttons);
-          if (intersects.length > 0) {
-            selectedButton = intersects[0].object.userData.name;
-            handleButtonPress(selectedButton);
-          }
-        });
-
-        const handleButtonPress = (buttonName: string) => {
-          if (buttonName === 'enterVR') {
-            console.log('Enter button pressed in VR');
-          } else if (buttonName === 'learn') {
-            console.log('Learn button pressed in VR');
+            const button = intersects[0].object as any;
+            if (button.userData.name === 'enter') {
+              console.log('Enter VR action triggered');
+            }
           }
         };
 
-        // Subtle breathing animation - calm and meditative
+        controller1.addEventListener('selectstart', () => onSelectStart(controller1));
+        controller2.addEventListener('selectstart', () => onSelectStart(controller2));
+
+        sceneRefsRef.current = {
+          scene,
+          orb,
+          orbMaterial,
+          buttons,
+          raycaster,
+          controller1,
+          controller2
+        };
+
+        // ===== PREMIUM ANIMATION LOOP =====
         let frameCount = 0;
+        let targetScale = 1;
+
         const animate = () => {
           if (!isMountedRef.current) return;
 
           frameCount++;
 
-          // Very subtle breathing (0.95 to 1.05 scale)
-          const breatheAmount = Math.sin(frameCount * 0.005) * 0.05 + 1;
-          orb.scale.set(breatheAmount, breatheAmount, breatheAmount);
+          // Smooth breathing animation
+          const breathPhase = Math.sin(frameCount * 0.004) * 0.04 + 1;
+          orb.scale.lerp(new THREE.Vector3(breathPhase, breathPhase, breathPhase), 0.1);
 
-          // Gentle glow pulse
-          orbMaterial.emissiveIntensity = 0.5 + Math.sin(frameCount * 0.01) * 0.2;
+          // Smooth glow pulse
+          orbMaterial.emissiveIntensity = 0.5 + Math.sin(frameCount * 0.008) * 0.3;
 
-          // Very slow rotation - barely noticeable
-          orb.rotation.x += 0.0002;
-          orb.rotation.y += 0.0003;
+          // Very subtle rotation
+          orb.rotation.x += 0.00008;
+          orb.rotation.y += 0.00012;
 
-          // Button hover effects based on controller proximity
+          // Button interaction
           buttons.forEach((btn) => {
-            const distance = camera.position.distanceTo(btn.position);
-            if (distance < 1.5) {
+            const origin = camera.position;
+            const direction = btn.position.clone().sub(origin).normalize();
+            raycaster.ray.origin.copy(origin);
+            raycaster.ray.direction.copy(direction);
+
+            const distance = origin.distanceTo(btn.position);
+            const hovering = distance < 2.5;
+
+            if (hovering && !btn.userData.hovered) {
+              btn.userData.hovered = true;
               btn.material = buttonMaterialHover;
-              btn.scale.set(1.1, 1.1, 1.1);
-            } else {
-              btn.material = buttonMaterialNormal;
-              btn.scale.set(1, 1, 1);
+            } else if (!hovering && btn.userData.hovered) {
+              btn.userData.hovered = false;
+              btn.material = buttonMaterialActive;
             }
           });
 
@@ -207,6 +298,7 @@ export default function VERAVRPage() {
 
         renderer.setAnimationLoop(animate);
 
+        // Handle window resize
         const handleResize = () => {
           camera.aspect = window.innerWidth / window.innerHeight;
           camera.updateProjectionMatrix();
@@ -224,7 +316,7 @@ export default function VERAVRPage() {
       } catch (error) {
         console.error('Scene setup error:', error);
         if (isMountedRef.current) {
-          setErrorMsg('Failed to setup 3D scene: ' + String(error));
+          setErrorMsg('Failed to initialize 3D scene');
         }
       }
     };
@@ -236,46 +328,66 @@ export default function VERAVRPage() {
     };
   }, []);
 
+  const playVeraVoice = () => {
+    if (!voiceRef.current) return;
+    
+    try {
+      window.speechSynthesis.cancel(); // Clear any queue
+      const utterance = new SpeechSynthesisUtterance(
+        'I am VERA. Your nervous system intelligence. I breathe with you. I regulate with you. I keep you organized and sane.'
+      );
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      utterance.lang = 'en-US';
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.error('Voice error:', err);
+    }
+  };
+
   const enterVR = async () => {
     try {
-      console.log('Requesting VR session...');
+      if (!isVRSupported) {
+        setErrorMsg('VR is not supported on this device');
+        setVrStatus('VR not supported');
+        return;
+      }
+
+      setVrStatus('Initializing VR session...');
       const session = await (navigator as any).xr.requestSession('immersive-vr', {
         requiredFeatures: ['local-floor'],
-        optionalFeatures: ['bounded-floor', 'hand-tracking']
+        optionalFeatures: ['bounded-floor', 'hand-tracking', 'dom-overlay'],
+        domOverlay: { root: document.body }
       });
 
       if (!isMountedRef.current) return;
 
       if (rendererRef.current) {
         rendererRef.current.xr.setSession(session);
-      }
+        setIsInVR(true);
+        setVrStatus('VR session active');
 
-      console.log('✓ VR session started');
-      setIsInVR(true);
-
-      // VERA speaks when entering VR
-      if (voiceRef.current) {
-        window.speechSynthesis.cancel(); // Clear any previous speech
-        const utterance = new SpeechSynthesisUtterance(
-          'I am VERA. Your nervous system intelligence. I breathe with you. I regulate with you. I keep you organized and sane.'
-        );
-        utterance.rate = 0.9;
-        utterance.pitch = 1;
-        utterance.volume = 0.9;
-        window.speechSynthesis.speak(utterance);
+        // Play VERA voice introduction only once
+        if (!hasSpokenRef.current) {
+          playVeraVoice();
+          hasSpokenRef.current = true;
+        }
       }
 
       session.addEventListener('end', () => {
-        console.log('VR session ended');
         window.speechSynthesis.cancel();
         if (isMountedRef.current) {
           setIsInVR(false);
+          setVrStatus('VR session ended');
+          hasSpokenRef.current = false; // Reset for next session
         }
       });
     } catch (error: any) {
-      console.error('✗ VR error:', error);
+      console.error('VR session error:', error);
       if (isMountedRef.current) {
-        setErrorMsg('VR Error: ' + error.message);
+        setErrorMsg(`VR Error: ${error.message || 'Unknown error'}`);
+        setVrStatus('VR session failed');
       }
     }
   };
@@ -375,33 +487,37 @@ export default function VERAVRPage() {
             <>
               <button
                 onClick={enterVR}
+                className="vera-button"
                 style={{
-                  padding: '14px 50px',
-                  fontSize: '16px',
-                  background: 'linear-gradient(135deg, #8899ff, #aa99ff)',
-                  border: '2px solid #8899ff',
+                  padding: '16px 60px',
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  background: 'linear-gradient(135deg, #8899ff 0%, #aa99ff 100%)',
+                  border: 'none',
                   borderRadius: '50px',
                   color: '#fff',
                   cursor: 'pointer',
-                  fontFamily: '"Segoe UI", sans-serif',
-                  fontWeight: '600',
-                  boxShadow: '0 8px 20px rgba(136, 153, 255, 0.3)',
+                  fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
+                  boxShadow: '0 10px 30px rgba(136, 153, 255, 0.35)',
                   marginRight: '15px',
-                  transition: 'all 0.3s',
-                  letterSpacing: '0.5px'
+                  transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  letterSpacing: '0.5px',
+                  textTransform: 'uppercase',
+                  position: 'relative',
+                  overflow: 'hidden'
                 }}
                 onMouseOver={(e) => {
                   const btn = e.currentTarget;
-                  btn.style.boxShadow = '0 12px 30px rgba(136, 153, 255, 0.5)';
-                  btn.style.transform = 'translateY(-2px)';
+                  btn.style.boxShadow = '0 15px 40px rgba(136, 153, 255, 0.5)';
+                  btn.style.transform = 'translateY(-3px) scale(1.02)';
                 }}
                 onMouseOut={(e) => {
                   const btn = e.currentTarget;
-                  btn.style.boxShadow = '0 8px 20px rgba(136, 153, 255, 0.3)';
-                  btn.style.transform = 'translateY(0)';
+                  btn.style.boxShadow = '0 10px 30px rgba(136, 153, 255, 0.35)';
+                  btn.style.transform = 'translateY(0) scale(1)';
                 }}
               >
-                Enter
+                Enter VR
               </button>
 
               <button
@@ -412,30 +528,36 @@ export default function VERAVRPage() {
                   );
                   utterance.rate = 0.9;
                   utterance.pitch = 1;
-                  utterance.volume = 0.9;
+                  utterance.volume = 1.0;
                   window.speechSynthesis.speak(utterance);
                 }}
+                className="vera-button"
                 style={{
-                  padding: '14px 50px',
-                  fontSize: '16px',
-                  background: 'transparent',
-                  border: '2px solid #c9b3e0',
-                  borderRadius: '50px',
-                  color: '#7a6b8f',
-                  cursor: 'pointer',
-                  fontFamily: '"Segoe UI", sans-serif',
+                  padding: '16px 60px',
+                  fontSize: '18px',
                   fontWeight: '600',
-                  transition: 'all 0.3s',
+                  background: 'rgba(136, 153, 255, 0.1)',
+                  border: '2px solid #8899ff',
+                  borderRadius: '50px',
+                  color: '#8899ff',
+                  cursor: 'pointer',
+                  fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
+                  transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                   letterSpacing: '0.5px',
+                  textTransform: 'uppercase',
                   marginLeft: '15px'
                 }}
                 onMouseOver={(e) => {
                   const btn = e.currentTarget;
-                  btn.style.background = 'rgba(170, 153, 255, 0.08)';
+                  btn.style.background = 'rgba(136, 153, 255, 0.15)';
+                  btn.style.boxShadow = '0 8px 20px rgba(136, 153, 255, 0.2)';
+                  btn.style.transform = 'translateY(-2px)';
                 }}
                 onMouseOut={(e) => {
                   const btn = e.currentTarget;
-                  btn.style.background = 'transparent';
+                  btn.style.background = 'rgba(136, 153, 255, 0.1)';
+                  btn.style.boxShadow = 'none';
+                  btn.style.transform = 'translateY(0)';
                 }}
               >
                 🔊 Hear VERA
@@ -443,38 +565,58 @@ export default function VERAVRPage() {
 
               <div
                 style={{
-                  marginTop: '35px',
-                  fontSize: '12px',
-                  color: '#8899aa',
-                  fontWeight: '500',
-                  letterSpacing: '1px',
+                  marginTop: '45px',
+                  fontSize: '13px',
+                  color: '#5a6c7d',
+                  fontWeight: '600',
+                  letterSpacing: '2px',
                   textTransform: 'uppercase'
                 }}
               >
-                REGULATED · INTELLIGENT · ALWAYS PRESENT
+                ✓ REGULATED • INTELLIGENT • ALWAYS PRESENT
               </div>
 
               <div
                 style={{
-                  marginTop: '15px',
-                  fontSize: '13px',
-                  color: '#8a99aa',
-                  fontWeight: '300'
+                  marginTop: '18px',
+                  fontSize: '14px',
+                  color: '#6b7d8e',
+                  fontWeight: '400',
+                  lineHeight: '1.7',
+                  letterSpacing: '0.3px'
                 }}
               >
                 I calm your nervous system. I think ten steps ahead. I am here for you, always.
               </div>
+
+              {vrStatus && (
+                <div
+                  style={{
+                    marginTop: '20px',
+                    fontSize: '12px',
+                    color: '#8899aa',
+                    fontWeight: '500',
+                    padding: '10px 15px',
+                    background: 'rgba(136, 153, 255, 0.08)',
+                    borderRadius: '8px',
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  {vrStatus}
+                </div>
+              )}
             </>
           ) : (
             <div
               style={{
                 color: '#d99999',
                 fontSize: '14px',
-                padding: '18px',
+                padding: '20px',
                 background: 'rgba(200, 100, 100, 0.08)',
                 borderRadius: '12px',
                 border: '1px solid rgba(200, 100, 100, 0.3)',
-                letterSpacing: '0.3px'
+                letterSpacing: '0.3px',
+                lineHeight: '1.6'
               }}
             >
               ✗ VR Not Available
@@ -510,11 +652,40 @@ export default function VERAVRPage() {
             box-shadow: 0 0 60px rgba(136, 153, 255, 0.5), inset -10px -10px 30px rgba(80, 100, 200, 0.2);
           }
           50% {
-            box-shadow: 0 0 80px rgba(136, 153, 255, 0.7), inset -10px -10px 30px rgba(80, 100, 200, 0.3);
+            box-shadow: 0 0 100px rgba(136, 153, 255, 0.8), inset -10px -10px 40px rgba(80, 100, 200, 0.4);
+            transform: scale(1.02);
           }
           100% {
             box-shadow: 0 0 60px rgba(136, 153, 255, 0.5), inset -10px -10px 30px rgba(80, 100, 200, 0.2);
           }
+        }
+
+        @keyframes shimmer {
+          0% {
+            background-position: -1000px 0;
+          }
+          100% {
+            background-position: 1000px 0;
+          }
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .vera-button {
+          transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .vera-button:active {
+          transform: scale(0.97);
         }
       `}</style>
 
