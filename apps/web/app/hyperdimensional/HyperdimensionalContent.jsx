@@ -1,5 +1,3 @@
-'use client';
-
 import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -17,22 +15,22 @@ import { AudioReactiveSystem } from './AudioReactive';
 // ═══════════════════════════════════════════════════════════
 // 🌌 HYPERDIMENSIONAL VERA - CORE SYSTEM
 // ═══════════════════════════════════════════════════════════
+// This is NOT a typical 3D object.
+// This is a 4D hypercube (tesseract) projected into 3D space.
+// Combined with volumetric atmosphere and sacred geometry.
+// ═══════════════════════════════════════════════════════════
 
 // 4D Point structure
 class Point4D {
-  x: number;
-  y: number;
-  z: number;
-  w: number;
-
-  constructor(x: number, y: number, z: number, w: number) {
+  constructor(x, y, z, w) {
     this.x = x;
     this.y = y;
     this.z = z;
-    this.w = w;
+    this.w = w; // The 4th dimension
   }
 
-  rotateXW(angle: number): Point4D {
+  // Rotate in 4D space (XW plane)
+  rotateXW(angle) {
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
     const newX = this.x * cos - this.w * sin;
@@ -40,7 +38,8 @@ class Point4D {
     return new Point4D(newX, this.y, this.z, newW);
   }
 
-  rotateYW(angle: number): Point4D {
+  // Rotate in 4D space (YW plane)
+  rotateYW(angle) {
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
     const newY = this.y * cos - this.w * sin;
@@ -48,7 +47,8 @@ class Point4D {
     return new Point4D(this.x, newY, this.z, newW);
   }
 
-  rotateZW(angle: number): Point4D {
+  // Rotate in 4D space (ZW plane)
+  rotateZW(angle) {
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
     const newZ = this.z * cos - this.w * sin;
@@ -56,7 +56,8 @@ class Point4D {
     return new Point4D(this.x, this.y, newZ, newW);
   }
 
-  projectTo3D(distance: number = 2): THREE.Vector3 {
+  // Project 4D point to 3D space (stereographic projection)
+  projectTo3D(distance = 2) {
     const factor = distance / (distance - this.w);
     return new THREE.Vector3(
       this.x * factor,
@@ -66,8 +67,10 @@ class Point4D {
   }
 }
 
-function generateTesseractVertices(): Point4D[] {
-  const vertices: Point4D[] = [];
+// Generate 4D Hypercube (Tesseract) vertices
+function generateTesseractVertices() {
+  const vertices = [];
+  // A tesseract has 16 vertices (2^4)
   for (let i = 0; i < 16; i++) {
     const x = (i & 1) ? 1 : -1;
     const y = (i & 2) ? 1 : -1;
@@ -78,11 +81,15 @@ function generateTesseractVertices(): Point4D[] {
   return vertices;
 }
 
-function generateTesseractEdges(): Array<[number, number]> {
-  const edges: Array<[number, number]> = [];
+// Generate edges connecting tesseract vertices
+function generateTesseractEdges() {
+  const edges = [];
+  // Tesseract has 32 edges
+  // Connect vertices that differ by exactly one coordinate
   for (let i = 0; i < 16; i++) {
     for (let j = i + 1; j < 16; j++) {
-      const diff = i ^ j;
+      const diff = i ^ j; // XOR to find differing bits
+      // If only one bit differs, they're connected
       if (diff && !(diff & (diff - 1))) {
         edges.push([i, j]);
       }
@@ -94,24 +101,19 @@ function generateTesseractEdges(): Array<[number, number]> {
 // ═══════════════════════════════════════════════════════════
 // 🌊 BREATHING ENGINE
 // ═══════════════════════════════════════════════════════════
-interface BreathState {
-  phase: number;
-  isInhaling: boolean;
-  intensity: number;
-}
-
-function useBreathing(bpm: number = 6): BreathState {
-  const [breathState, setBreathState] = useState<BreathState>({
-    phase: 0,
+function useBreathing(bpm = 6) {
+  const [breathState, setBreathState] = useState({
+    phase: 0, // 0-1, where 0 is exhale, 1 is full inhale
     isInhaling: true,
     intensity: 0.5
   });
 
   useEffect(() => {
-    const cycleTime = (60 / bpm) * 1000;
+    const cycleTime = (60 / bpm) * 1000; // ms per breath cycle
     const inhaleTime = cycleTime * 0.4;
     const holdTime = cycleTime * 0.1;
     const exhaleTime = cycleTime * 0.4;
+    const restTime = cycleTime * 0.1;
 
     let startTime = Date.now();
 
@@ -120,6 +122,7 @@ function useBreathing(bpm: number = 6): BreathState {
       const cyclePosition = elapsed % cycleTime;
 
       if (cyclePosition < inhaleTime) {
+        // Inhaling
         const progress = cyclePosition / inhaleTime;
         setBreathState({
           phase: progress,
@@ -127,12 +130,14 @@ function useBreathing(bpm: number = 6): BreathState {
           intensity: progress
         });
       } else if (cyclePosition < inhaleTime + holdTime) {
+        // Hold (full)
         setBreathState({
           phase: 1,
           isInhaling: false,
           intensity: 1
         });
       } else if (cyclePosition < inhaleTime + holdTime + exhaleTime) {
+        // Exhaling
         const progress = (cyclePosition - inhaleTime - holdTime) / exhaleTime;
         setBreathState({
           phase: 1 - progress,
@@ -140,6 +145,7 @@ function useBreathing(bpm: number = 6): BreathState {
           intensity: 1 - progress
         });
       } else {
+        // Rest (empty)
         setBreathState({
           phase: 0,
           isInhaling: false,
@@ -158,17 +164,12 @@ function useBreathing(bpm: number = 6): BreathState {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🎆 TESSERACT CORE
+// 🎆 TESSERACT CORE - The Impossible Geometry
 // ═══════════════════════════════════════════════════════════
-interface TesseractCoreProps {
-  breathState: BreathState;
-  nervousSystemState: string;
-}
-
-function TesseractCore({ breathState, nervousSystemState = 'balanced' }: TesseractCoreProps) {
-  const linesRef = useRef<THREE.LineSegments>(null);
-  const innerLinesRef = useRef<THREE.LineSegments>(null);
-  const glowRef = useRef<THREE.Mesh>(null);
+function TesseractCore({ breathState, nervousSystemState = 'balanced' }) {
+  const linesRef = useRef();
+  const innerLinesRef = useRef();
+  const glowRef = useRef();
 
   const tesseractData = useMemo(() => {
     return {
@@ -177,11 +178,12 @@ function TesseractCore({ breathState, nervousSystemState = 'balanced' }: Tessera
     };
   }, []);
 
-  const stateColors: { [key: string]: THREE.Color } = {
-    'sympathetic': new THREE.Color(0xff3366),
-    'parasympathetic': new THREE.Color(0x33ffaa),
-    'balanced': new THREE.Color(0x6666ff),
-    'coherent': new THREE.Color(0xffaa33)
+  // State-based color mapping
+  const stateColors = {
+    'sympathetic': new THREE.Color(0xff3366), // Red - fight/flight
+    'parasympathetic': new THREE.Color(0x33ffaa), // Cyan - rest/digest
+    'balanced': new THREE.Color(0x6666ff), // Blue-purple - coherence
+    'coherent': new THREE.Color(0xffaa33) // Gold - optimal
   };
 
   const currentColor = stateColors[nervousSystemState] || stateColors.balanced;
@@ -189,36 +191,44 @@ function TesseractCore({ breathState, nervousSystemState = 'balanced' }: Tessera
   useFrame((state) => {
     const time = state.clock.elapsedTime;
 
+    // 4D rotation angles (rotating through 4D space)
     const angleXW = time * 0.3;
     const angleYW = time * 0.2;
     const angleZW = time * 0.25;
 
+    // Breathing affects rotation speed and scale
     const breathScale = 0.8 + breathState.intensity * 0.4;
     const breathGlow = 0.5 + breathState.intensity * 0.5;
 
+    // Rotate and project tesseract vertices
     const projectedVertices = tesseractData.vertices.map(vertex => {
       const rotated = vertex
         .rotateXW(angleXW)
         .rotateYW(angleYW)
         .rotateZW(angleZW);
       
+      // Breathing affects projection distance
       const projectionDistance = 2 + breathState.intensity * 0.5;
       return rotated.projectTo3D(projectionDistance);
     });
 
-    const positions: number[] = [];
-    const innerPositions: number[] = [];
+    // Update line geometry
+    const positions = [];
+    const innerPositions = [];
 
-    tesseractData.edges.forEach(([i, j]) => {
+    tesseractData.edges.forEach(([i, j], edgeIndex) => {
       const v1 = projectedVertices[i];
       const v2 = projectedVertices[j];
 
+      // Scale by breath
       const scaledV1 = v1.clone().multiplyScalar(breathScale);
       const scaledV2 = v2.clone().multiplyScalar(breathScale);
 
+      // Outer tesseract
       positions.push(scaledV1.x, scaledV1.y, scaledV1.z);
       positions.push(scaledV2.x, scaledV2.y, scaledV2.z);
 
+      // Inner tesseract (smaller, for depth)
       const innerScale = 0.6;
       innerPositions.push(scaledV1.x * innerScale, scaledV1.y * innerScale, scaledV1.z * innerScale);
       innerPositions.push(scaledV2.x * innerScale, scaledV2.y * innerScale, scaledV2.z * innerScale);
@@ -240,29 +250,34 @@ function TesseractCore({ breathState, nervousSystemState = 'balanced' }: Tessera
       innerLinesRef.current.geometry.attributes.position.needsUpdate = true;
     }
 
+    // Update glow
     if (glowRef.current) {
-      (glowRef.current.material as THREE.MeshBasicMaterial).opacity = breathGlow * 0.3;
+      glowRef.current.material.opacity = breathGlow * 0.3;
       glowRef.current.scale.setScalar(breathScale * 1.2);
     }
   });
 
   return (
     <group>
+      {/* Outer tesseract edges */}
       <lineSegments ref={linesRef}>
         <bufferGeometry />
         <lineBasicMaterial color={currentColor} linewidth={2} transparent opacity={0.8} />
       </lineSegments>
 
+      {/* Inner tesseract (depth) */}
       <lineSegments ref={innerLinesRef}>
         <bufferGeometry />
         <lineBasicMaterial color={currentColor} linewidth={1} transparent opacity={0.4} />
       </lineSegments>
 
+      {/* Central glow sphere */}
       <mesh ref={glowRef}>
         <sphereGeometry args={[1, 32, 32]} />
         <meshBasicMaterial color={currentColor} transparent opacity={0.2} />
       </mesh>
 
+      {/* Outer glow (atmosphere) */}
       <mesh scale={1.5}>
         <sphereGeometry args={[1, 32, 32]} />
         <meshBasicMaterial
@@ -279,13 +294,8 @@ function TesseractCore({ breathState, nervousSystemState = 'balanced' }: Tessera
 // ═══════════════════════════════════════════════════════════
 // 🌫️ VOLUMETRIC ATMOSPHERE
 // ═══════════════════════════════════════════════════════════
-interface VolumetricAtmosphereProps {
-  breathState: BreathState;
-  color?: string;
-}
-
-function VolumetricAtmosphere({ breathState, color = '#6666ff' }: VolumetricAtmosphereProps) {
-  const particlesRef = useRef<THREE.Points>(null);
+function VolumetricAtmosphere({ breathState, color = '#6666ff' }) {
+  const particlesRef = useRef();
   const particleCount = 2000;
 
   const particles = useMemo(() => {
@@ -293,6 +303,7 @@ function VolumetricAtmosphere({ breathState, color = '#6666ff' }: VolumetricAtmo
     const velocities = new Float32Array(particleCount * 3);
 
     for (let i = 0; i < particleCount; i++) {
+      // Random spherical distribution
       const radius = Math.random() * 3;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
@@ -301,6 +312,7 @@ function VolumetricAtmosphere({ breathState, color = '#6666ff' }: VolumetricAtmo
       positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
       positions[i * 3 + 2] = radius * Math.cos(phi);
 
+      // Random velocities (for breathing motion)
       velocities[i * 3] = (Math.random() - 0.5) * 0.02;
       velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.02;
       velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.02;
@@ -312,7 +324,7 @@ function VolumetricAtmosphere({ breathState, color = '#6666ff' }: VolumetricAtmo
   useFrame(() => {
     if (!particlesRef.current) return;
 
-    const positions = particlesRef.current.geometry.attributes.position.array as Float32Array;
+    const positions = particlesRef.current.geometry.attributes.position.array;
     const breathForce = (breathState.intensity - 0.5) * 0.01;
 
     for (let i = 0; i < particleCount; i++) {
@@ -322,16 +334,19 @@ function VolumetricAtmosphere({ breathState, color = '#6666ff' }: VolumetricAtmo
 
       const distance = Math.sqrt(x * x + y * y + z * z);
       
+      // Breathing pushes particles in/out
       if (distance > 0) {
         positions[i * 3] += (x / distance) * breathForce;
         positions[i * 3 + 1] += (y / distance) * breathForce;
         positions[i * 3 + 2] += (z / distance) * breathForce;
       }
 
+      // Add velocity
       positions[i * 3] += particles.velocities[i * 3];
       positions[i * 3 + 1] += particles.velocities[i * 3 + 1];
       positions[i * 3 + 2] += particles.velocities[i * 3 + 2];
 
+      // Keep particles within bounds
       const currentDistance = Math.sqrt(
         positions[i * 3] ** 2 + 
         positions[i * 3 + 1] ** 2 + 
@@ -339,6 +354,7 @@ function VolumetricAtmosphere({ breathState, color = '#6666ff' }: VolumetricAtmo
       );
 
       if (currentDistance > 4 || currentDistance < 0.5) {
+        // Reset particle
         const radius = Math.random() * 2 + 1;
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
@@ -357,9 +373,9 @@ function VolumetricAtmosphere({ breathState, color = '#6666ff' }: VolumetricAtmo
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
+          count={particleCount}
           array={particles.positions}
           itemSize={3}
-          args={[particles.positions, 3]}
         />
       </bufferGeometry>
       <pointsMaterial
@@ -375,31 +391,22 @@ function VolumetricAtmosphere({ breathState, color = '#6666ff' }: VolumetricAtmo
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🎮 VERA SCENE
+// 🎮 MAIN VERA COMPONENT
 // ═══════════════════════════════════════════════════════════
-interface VERASceneProps {
-  nervousSystemState: string;
-  setNervousSystemState: (state: string) => void;
-}
-
-function VERAScene({ nervousSystemState, setNervousSystemState }: VERASceneProps) {
-  const breathState = useBreathing(6);
+function VERAScene({ nervousSystemState, setNervousSystemState }) {
+  const breathState = useBreathing(6); // 6 breaths per minute
   
   // Voice system integration
   const voiceSystem = useVoiceSystem();
   const [hasIntroduced, setHasIntroduced] = useState(false);
 
-  // Store voice system in window for access from buttons
-  useEffect(() => {
-    (window as any).veraVoiceSystem = voiceSystem;
-  }, [voiceSystem]);
-
+  // Auto-cycle through states (can be disabled when connected to real biometrics)
   useEffect(() => {
     const states = ['balanced', 'coherent', 'sympathetic', 'parasympathetic'];
     const interval = setInterval(() => {
       const randomState = states[Math.floor(Math.random() * states.length)];
       setNervousSystemState(randomState);
-    }, 10000);
+    }, 10000); // Change every 10 seconds
 
     return () => clearInterval(interval);
   }, [setNervousSystemState]);
@@ -424,7 +431,7 @@ function VERAScene({ nervousSystemState, setNervousSystemState }: VERASceneProps
   useEffect(() => {
     if (!voiceSystem.isInitialized || voiceSystem.isSpeaking) return;
     
-    let script: any = null;
+    let script = null;
     
     switch (nervousSystemState) {
       case 'coherent':
@@ -451,7 +458,8 @@ function VERAScene({ nervousSystemState, setNervousSystemState }: VERASceneProps
     }
   }, [nervousSystemState, voiceSystem, hasIntroduced]);
 
-  const stateColorMap: { [key: string]: string } = {
+  // State color mapping
+  const stateColorMap = {
     'sympathetic': '#ff3366',
     'parasympathetic': '#33ffaa',
     'balanced': '#6666ff',
@@ -462,40 +470,51 @@ function VERAScene({ nervousSystemState, setNervousSystemState }: VERASceneProps
 
   return (
     <>
+      {/* Lighting */}
       <ambientLight intensity={0.2} />
       <pointLight position={[0, 0, 0]} intensity={1} color={currentColor} />
 
+      {/* The hyperdimensional core */}
       <TesseractCore breathState={breathState} nervousSystemState={nervousSystemState} />
 
+      {/* Volumetric atmosphere */}
       <VolumetricAtmosphere breathState={breathState} color={currentColor} />
 
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* 🌸 SACRED GEOMETRY - Emerges from breath and coherence */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      
+      {/* Flower of Life - manifests during balanced/coherent states */}
       <FlowerOfLife
         breathState={breathState}
         nervousSystemState={nervousSystemState}
         color={currentColor}
       />
 
+      {/* Metatron's Cube - appears during deep coherence */}
       <MetatronsCube
         breathState={breathState}
         nervousSystemState={nervousSystemState}
         color={currentColor}
       />
 
+      {/* Cymatics Pattern - shows during calm states */}
       <CymaticsPattern
         breathState={breathState}
         nervousSystemState={nervousSystemState}
         color={currentColor}
       />
 
+      {/* Fractal Emergence - activates during sympathetic states */}
       <FractalEmergence
         breathState={breathState}
         nervousSystemState={nervousSystemState}
         color={currentColor}
       />
 
+      {/* Floating Geometry Particles - always present, breath-reactive */}
       <GeometryParticles
         breathState={breathState}
-        nervousSystemState={nervousSystemState}
         color={currentColor}
       />
 
@@ -509,6 +528,7 @@ function VERAScene({ nervousSystemState, setNervousSystemState }: VERASceneProps
         color={currentColor}
       />
 
+      {/* Camera controls */}
       <OrbitControls
         enableDamping
         dampingFactor={0.05}
@@ -519,8 +539,12 @@ function VERAScene({ nervousSystemState, setNervousSystemState }: VERASceneProps
   );
 }
 
-export function HyperdimensionalVERAContent() {
+// ═══════════════════════════════════════════════════════════
+// 🚀 EXPORT - Ready to use
+// ═══════════════════════════════════════════════════════════
+export default function HyperdimensionalVERA() {
   const [nervousSystemState, setNervousSystemState] = useState('balanced');
+  const voiceSystemRef = useRef(null);
   
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000' }}>
@@ -530,9 +554,11 @@ export function HyperdimensionalVERAContent() {
         <VERASceneWrapper 
           nervousSystemState={nervousSystemState} 
           setNervousSystemState={setNervousSystemState}
+          voiceSystemRef={voiceSystemRef}
         />
       </Canvas>
 
+      {/* State indicator */}
       <div style={{
         position: 'absolute',
         top: 20,
@@ -570,7 +596,7 @@ export function HyperdimensionalVERAContent() {
       }}>
         <div style={{ marginBottom: '10px' }}>🎤 Voice System</div>
         <button
-          onClick={() => (window as any).veraVoiceSystem?.initialize()}
+          onClick={() => voiceSystemRef.current?.initialize()}
           style={{
             padding: '6px 12px',
             background: 'rgba(102,102,255,0.3)',
@@ -587,7 +613,7 @@ export function HyperdimensionalVERAContent() {
           Initialize Voice
         </button>
         <button
-          onClick={() => (window as any).veraVoiceSystem?.speak(VERA_SCRIPTS.presence.text)}
+          onClick={() => voiceSystemRef.current?.speak(VERA_SCRIPTS.presence.text)}
           style={{
             padding: '6px 12px',
             background: 'rgba(102,102,255,0.3)',
@@ -604,7 +630,7 @@ export function HyperdimensionalVERAContent() {
           Speak
         </button>
         <button
-          onClick={() => (window as any).veraVoiceSystem?.stop()}
+          onClick={() => voiceSystemRef.current?.stop()}
           style={{
             padding: '6px 12px',
             background: 'rgba(255,51,102,0.3)',
@@ -621,6 +647,7 @@ export function HyperdimensionalVERAContent() {
         </button>
       </div>
 
+      {/* Manual state controls for testing */}
       <div style={{
         position: 'absolute',
         bottom: 20,
@@ -652,17 +679,18 @@ export function HyperdimensionalVERAContent() {
 }
 
 // Wrapper to access voice system from parent
-function VERASceneWrapper({ nervousSystemState, setNervousSystemState }: any) {
+function VERASceneWrapper({ nervousSystemState, setNervousSystemState, voiceSystemRef }) {
   return (
     <VERAScene 
       nervousSystemState={nervousSystemState} 
       setNervousSystemState={setNervousSystemState}
+      ref={voiceSystemRef}
     />
   );
 }
 
-function getStateColor(state: string): string {
-  const colors: { [key: string]: string } = {
+function getStateColor(state) {
+  const colors = {
     'sympathetic': '#ff3366',
     'parasympathetic': '#33ffaa',
     'balanced': '#6666ff',
@@ -671,8 +699,8 @@ function getStateColor(state: string): string {
   return colors[state] || '#6666ff';
 }
 
-function getActiveGeometry(state: string): string {
-  const geometry: { [key: string]: string } = {
+function getActiveGeometry(state) {
+  const geometry = {
     'sympathetic': '⚡ Fractal Emergence Active',
     'parasympathetic': '🌊 Cymatics Pattern Active',
     'balanced': '🌸 Flower of Life Emerging',
