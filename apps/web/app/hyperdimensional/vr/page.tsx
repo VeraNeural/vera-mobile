@@ -80,17 +80,17 @@ export default function VERAVRPage() {
 
       // Add a sphere
       const sphereGeometry = new THREE.SphereGeometry(0.5, 32, 32);
-      const sphereMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffff });
+      const sphereMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff });
       const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
       sphere.position.set(2, 0, -3);
       scene.add(sphere);
 
       // Add lighting
-      const light = new THREE.PointLight(0xffffff, 1);
+      const light = new THREE.PointLight(0xffffff, 1.5);
       light.position.set(5, 5, 5);
       scene.add(light);
 
-      const ambientLight = new THREE.AmbientLight(0x404040);
+      const ambientLight = new THREE.AmbientLight(0x606060);
       scene.add(ambientLight);
 
       // Animation loop
@@ -101,8 +101,10 @@ export default function VERAVRPage() {
         cube.rotation.x += 0.01;
         cube.rotation.y += 0.01;
 
-        // Rotate sphere
+        // Rotate sphere - MORE VISIBLE
+        sphere.rotation.x += 0.02;
         sphere.rotation.y += 0.02;
+        sphere.rotation.z += 0.015;
       };
 
       renderer.setAnimationLoop(animate);
@@ -302,25 +304,29 @@ export default function VERAVRPage() {
                   marginBottom: '15px'
                 }}
               >
-                ❌ immersive-vr Not Supported
+                ⚠️ immersive-vr Not Detected
                 <br />
-                Try updating Quest browser or check permissions
+                (But we can still try!)
               </div>
               
               <button
-                onClick={() => setErrorMsg('')}
+                onClick={enterVR}
                 style={{
-                  padding: '10px 20px',
-                  fontSize: '14px',
-                  background: '#666',
-                  border: '1px solid #888',
-                  borderRadius: '8px',
+                  padding: '20px 50px',
+                  fontSize: '20px',
+                  background: '#6666ff',
+                  border: '2px solid #8888ff',
+                  borderRadius: '15px',
                   color: '#fff',
                   cursor: 'pointer',
-                  fontFamily: 'monospace'
+                  fontFamily: 'monospace',
+                  fontWeight: 'bold',
+                  boxShadow: '0 0 30px rgba(102, 102, 255, 0.8)',
+                  marginBottom: '20px',
+                  transition: 'all 0.2s'
                 }}
               >
-                Try Anyway
+                🥽 TRY VR ANYWAY
               </button>
             </>
           )}
