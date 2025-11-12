@@ -29,56 +29,191 @@ export default function VERAQuestVR() {
       (container as any).appendChild(renderer.domElement);
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // 🌌 VERA HYPERDIMENSIONAL CORE
+    // ═══════════════════════════════════════════════════════════
+
+    // 4D Point class for tesseract
+    class Point4D {
+      x: number; y: number; z: number; w: number;
+      constructor(x: number, y: number, z: number, w: number) {
+        this.x = x; this.y = y; this.z = z; this.w = w;
+      }
+      rotateXW(angle: number) {
+        const cos = Math.cos(angle), sin = Math.sin(angle);
+        return new Point4D(this.x * cos - this.w * sin, this.y, this.z, this.x * sin + this.w * cos);
+      }
+      rotateYW(angle: number) {
+        const cos = Math.cos(angle), sin = Math.sin(angle);
+        return new Point4D(this.x, this.y * cos - this.w * sin, this.z, this.y * sin + this.w * cos);
+      }
+      rotateZW(angle: number) {
+        const cos = Math.cos(angle), sin = Math.sin(angle);
+        return new Point4D(this.x, this.y, this.z * cos - this.w * sin, this.z * sin + this.w * cos);
+      }
+      projectTo3D(distance = 2) {
+        const factor = distance / (distance - this.w);
+        return new THREE.Vector3(this.x * factor, this.y * factor, this.z * factor);
+      }
+    }
+
+    // Generate tesseract vertices
+    function generateTesseractVertices() {
+      const vertices = [];
+      for (let i = 0; i < 16; i++) {
+        vertices.push(new Point4D(
+          (i & 1) ? 1 : -1,
+          (i & 2) ? 1 : -1,
+          (i & 4) ? 1 : -1,
+          (i & 8) ? 1 : -1
+        ));
+      }
+      return vertices;
+    }
+
+    // Generate tesseract edges
+    function generateTesseractEdges() {
+      const edges = [];
+      for (let i = 0; i < 16; i++) {
+        for (let j = i + 1; j < 16; j++) {
+          const diff = i ^ j;
+          if (diff && !(diff & (diff - 1))) {
+            edges.push([i, j]);
+          }
+        }
+      }
+      return edges;
+    }
+
+    const tesseractVertices = generateTesseractVertices();
+    const tesseractEdges = generateTesseractEdges();
+
+    // Create tesseract lines
+    const linesGeometry = new THREE.BufferGeometry();
+    const linesMaterial = new THREE.LineBasicMaterial({ color: 0x6666ff, linewidth: 2 });
+    const tesseractLines = new THREE.LineSegments(linesGeometry, linesMaterial);
+    scene.add(tesseractLines);
+
+    // Create inner tesseract (dimmer)
+    const innerLinesGeometry = new THREE.BufferGeometry();
+    const innerLinesMaterial = new THREE.LineBasicMaterial({ color: 0x3333ff, linewidth: 1, transparent: true, opacity: 0.4 });
+    const innerLines = new THREE.LineSegments(innerLinesGeometry, innerLinesMaterial);
+    scene.add(innerLines);
+
+    // Breathing orb (glow sphere)
+    const glowGeometry = new THREE.SphereGeometry(1.2, 32, 32);
+    const glowMaterial = new THREE.MeshBasicMaterial({ color: 0x6666ff, transparent: true, opacity: 0.15 });
+    const glowSphere = new THREE.Mesh(glowGeometry, glowMaterial);
+    scene.add(glowSphere);
+
     // Add lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
     scene.add(ambientLight);
 
     const pointLight = new THREE.PointLight(0x6666ff, 2);
-    pointLight.position.set(0, 2, 5);
+    pointLight.position.set(0, 2, 3);
     scene.add(pointLight);
 
-    // Create tesseract visualization
-    const geometry = new THREE.IcosahedronGeometry(1, 4);
-    const material = new THREE.MeshPhongMaterial({
-      color: 0x6666ff,
-      emissive: 0x3333ff,
-      wireframe: false
-    });
-    const tesseract = new THREE.Mesh(geometry, material);
-    scene.add(tesseract);
-
-    // Add particles
+    // Volumetric particles
     const particleGeometry = new THREE.BufferGeometry();
-    const particleCount = 500;
+    const particleCount = 800;
     const positions = new Float32Array(particleCount * 3);
 
     for (let i = 0; i < particleCount * 3; i += 3) {
-      positions[i] = (Math.random() - 0.5) * 10;
-      positions[i + 1] = (Math.random() - 0.5) * 10;
-      positions[i + 2] = (Math.random() - 0.5) * 10;
+      const radius = Math.random() * 3;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      positions[i] = radius * Math.sin(phi) * Math.cos(theta);
+      positions[i + 1] = radius * Math.sin(phi) * Math.sin(theta);
+      positions[i + 2] = radius * Math.cos(phi);
     }
 
     particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     const particleMaterial = new THREE.PointsMaterial({
       color: 0x33ffaa,
-      size: 0.05,
-      sizeAttenuation: true
+      size: 0.04,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.7
     });
     const particles = new THREE.Points(particleGeometry, particleMaterial);
     scene.add(particles);
 
-    camera.position.z = 3;
+    // VERA group (follows camera)
+    const veraGroup = new THREE.Group();
+    veraGroup.position.set(0, 0, -2);
+    scene.add(veraGroup);
+
+    // Add components to VERA group
+    veraGroup.add(tesseractLines);
+    veraGroup.add(innerLines);
+    veraGroup.add(glowSphere);
+    veraGroup.add(particles);
+
+    camera.position.set(0, 1.6, 0);
+
+    // Breathing state
+    let breathState = { phase: 0, intensity: 0.5 };
 
     // Animation loop
     const animate = () => {
       requestAnimationFrame(animate);
 
-      tesseract.rotation.x += 0.005;
-      tesseract.rotation.y += 0.007;
-      tesseract.rotation.z += 0.003;
+      // Breathing animation
+      const time = Date.now() * 0.001;
+      const cycleTime = 10; // 10 second cycle
+      const cyclePosition = (time % cycleTime) / cycleTime;
+      
+      if (cyclePosition < 0.4) {
+        breathState.intensity = cyclePosition / 0.4;
+      } else if (cyclePosition < 0.5) {
+        breathState.intensity = 1;
+      } else if (cyclePosition < 0.9) {
+        breathState.intensity = 1 - (cyclePosition - 0.5) / 0.4;
+      } else {
+        breathState.intensity = 0.2;
+      }
 
-      particles.rotation.x += 0.0001;
-      particles.rotation.y += 0.0001;
+      // Update tesseract
+      const angleXW = time * 0.3;
+      const angleYW = time * 0.2;
+      const angleZW = time * 0.25;
+      const breathScale = 0.8 + breathState.intensity * 0.4;
+
+      const projectedVertices = tesseractVertices.map(v => 
+        v.rotateXW(angleXW).rotateYW(angleYW).rotateZW(angleZW).projectTo3D(2 + breathState.intensity * 0.5)
+      );
+
+      const positions: number[] = [];
+      const innerPositions: number[] = [];
+
+      tesseractEdges.forEach(([i, j]) => {
+        const v1 = projectedVertices[i as number];
+        const v2 = projectedVertices[j as number];
+        const scaledV1 = v1.clone().multiplyScalar(breathScale);
+        const scaledV2 = v2.clone().multiplyScalar(breathScale);
+
+        positions.push(scaledV1.x, scaledV1.y, scaledV1.z);
+        positions.push(scaledV2.x, scaledV2.y, scaledV2.z);
+
+        const innerScale = 0.6;
+        innerPositions.push(scaledV1.x * innerScale, scaledV1.y * innerScale, scaledV1.z * innerScale);
+        innerPositions.push(scaledV2.x * innerScale, scaledV2.y * innerScale, scaledV2.z * innerScale);
+      });
+
+      linesGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions as any, 3));
+      innerLinesGeometry.setAttribute('position', new THREE.Float32BufferAttribute(innerPositions as any, 3));
+
+      glowSphere.scale.setScalar(breathScale * 1.2);
+      glowMaterial.opacity = (breathState.intensity * 0.2);
+
+      // VERA follows camera gaze
+      const forward = new THREE.Vector3(0, 0, -1);
+      forward.applyQuaternion(camera.quaternion);
+      const targetPos = camera.position.clone().add(forward.multiplyScalar(2));
+      targetPos.y = camera.position.y;
+      veraGroup.position.lerp(targetPos, 0.05);
+      veraGroup.lookAt(camera.position);
 
       renderer.render(scene, camera);
     };
@@ -99,8 +234,12 @@ export default function VERAQuestVR() {
       if (container && (container as any).contains(renderer.domElement)) {
         (container as any).removeChild(renderer.domElement);
       }
-      geometry.dispose();
-      material.dispose();
+      linesGeometry.dispose();
+      linesMaterial.dispose();
+      innerLinesGeometry.dispose();
+      innerLinesMaterial.dispose();
+      glowGeometry.dispose();
+      glowMaterial.dispose();
       particleGeometry.dispose();
       particleMaterial.dispose();
       renderer.dispose();
@@ -133,13 +272,14 @@ export default function VERAQuestVR() {
             padding: '16px 32px',
             fontSize: '16px',
             fontWeight: 'bold',
-            background: '#6666ff',
+            background: 'linear-gradient(135deg, #6666ff, #aa33ff)',
             color: '#fff',
-            border: 'none',
-            borderRadius: '8px',
+            border: '2px solid #fff',
+            borderRadius: '50px',
             cursor: 'pointer',
             fontFamily: 'monospace',
-            zIndex: '1000'
+            zIndex: '1000',
+            boxShadow: '0 0 30px rgba(102, 102, 255, 0.6)'
           }}
         >
           🥽 Enter VR
@@ -153,9 +293,12 @@ export default function VERAQuestVR() {
           color: '#fff',
           fontFamily: 'monospace',
           textAlign: 'center',
-          padding: '40px'
+          padding: '40px',
+          border: '2px solid #6666ff',
+          borderRadius: '10px',
+          background: 'rgba(0,0,0,0.8)'
         }}>
-          <div style={{ fontSize: '24px', marginBottom: '20px' }}>🌌 VERA VR</div>
+          <div style={{ fontSize: '24px', marginBottom: '20px' }}>🌌 VERA - Hyperdimensional Presence</div>
           <div>VR not available on this device</div>
           <div style={{ fontSize: '12px', marginTop: '20px', opacity: 0.6 }}>
             Use Meta Quest 3 browser
