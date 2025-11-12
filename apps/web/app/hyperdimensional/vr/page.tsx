@@ -1,414 +1,263 @@
-'use client';
+﻿'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import * as THREE from 'three';
 
-export default function VERAVRPage() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isVRSupported, setIsVRSupported] = useState(false);
+const useErrorLogger = () => {
+  const [errors, setErrors] = useState<string[]>([]);
+  const [logs, setLogs] = useState<string[]>([]);
+
+  useEffect(() => {
+    const errorHandler = (event: ErrorEvent) => {
+      setErrors(prev => [...prev, `ERROR: ${event.message}`]);
+    };
+
+    const consoleError = console.error;
+    console.error = (...args: any[]) => {
+      setErrors(prev => [...prev, `${args.join(' ')}`]);
+      consoleError(...args);
+    };
+
+    const consoleLog = console.log;
+    console.log = (...args: any[]) => {
+      setLogs(prev => [...prev.slice(-5), args.join(' ')]);
+      consoleLog(...args);
+    };
+
+    window.addEventListener('error', errorHandler);
+
+    return () => {
+      window.removeEventListener('error', errorHandler);
+      console.error = consoleError;
+      console.log = consoleLog;
+    };
+  }, []);
+
+  return { errors, logs };
+};
+
+function TestCube() {
+  const meshRef = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    if (meshRef.current) {
+      meshRef.current.rotation.x += 0.01;
+      meshRef.current.rotation.y += 0.01;
+    }
+  });
+  return (
+    <mesh ref={meshRef} position={[0, 1.6, -2]}>
+      <boxGeometry args={[0.5, 0.5, 0.5]} />
+      <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1} />
+    </mesh>
+  );
+}
+
+function SimpleScene() {
+  const { gl } = useThree();
+  useEffect(() => {
+    if (gl.xr) {
+      gl.xr.enabled = true;
+      console.log('XR enabled');
+    }
+  }, [gl]);
+
+  return (
+    <>
+      <color attach="background" args={['#111111']} />
+      <ambientLight intensity={0.8} />
+      <pointLight position={[0, 2, 0]} intensity={2} />
+      <pointLight position={[2, 1, -2]} intensity={1} color="#6666ff" />
+      <TestCube />
+      <mesh position={[0.8, 1.6, -2]}>
+        <sphereGeometry args={[0.2, 32, 32]} />
+        <meshStandardMaterial color="#00ffff" emissive="#00ffff" emissiveIntensity={1} />
+      </mesh>
+      <gridHelper args={[10, 10, '#444444', '#222222']} />
+    </>
+  );
+}
+
+export default function VRWithDebug() {
   const [isInVR, setIsInVR] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const sessionRef = useRef<any>(null);
-  const rendererRef = useRef<any>(null);
+  const [status, setStatus] = useState('Checking VR...');
+  const [vrSupported, setVRSupported] = useState(false);
+  const { errors, logs } = useErrorLogger();
+  const glRef = useRef<any>(null);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
     isMountedRef.current = true;
-
-    // Check VR support
-    console.log('Navigator XR available:', typeof navigator !== 'undefined' && 'xr' in navigator);
-    
-    if (typeof navigator !== 'undefined' && 'xr' in navigator) {
-      // Try immersive-vr
-      (navigator as any).xr.isSessionSupported('immersive-vr')
-        .then((supported: boolean) => {
-          console.log('✅ immersive-vr supported:', supported);
-          if (isMountedRef.current) {
-            setIsVRSupported(supported);
-          }
-        })
-        .catch((err: any) => {
-          console.error('❌ VR check error:', err);
-        });
-
-      // Also check inline
-      (navigator as any).xr.isSessionSupported('inline')
-        .then((supported: boolean) => {
-          console.log('✅ Inline mode supported:', supported);
-        });
-    } else {
-      console.log('❌ WebXR not available');
-      if (isMountedRef.current) {
-        setErrorMsg('WebXR not available');
+    const checkVR = async () => {
+      try {
+        if (!('xr' in navigator)) {
+          if (isMountedRef.current) setStatus('WebXR not found');
+          return;
+        }
+        const supported = await (navigator as any).xr.isSessionSupported('immersive-vr');
+        if (isMountedRef.current) {
+          setVRSupported(supported);
+          setStatus(supported ? 'VR Ready!' : 'VR not supported');
+        }
+      } catch (err: any) {
+        if (isMountedRef.current) setStatus('Error: ' + err.message);
       }
-    }
-
-    // Setup Three.js scene
-    setupScene();
-
-    return () => {
-      isMountedRef.current = false;
     };
+    checkVR();
+    return () => { isMountedRef.current = false; };
   }, []);
 
-  const setupScene = async () => {
-    try {
-      const THREE = await import('three');
-      const canvas = canvasRef.current;
-      
-      if (!canvas) {
-        console.error('Canvas ref not found');
-        return;
-      }
-
-      // Scene setup
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x000000);
-
-      const camera = new THREE.PerspectiveCamera(
-        75,
-        window.innerWidth / window.innerHeight,
-        0.1,
-        1000
-      );
-      camera.position.z = 5;
-
-      const renderer = new THREE.WebGLRenderer({ 
-        canvas,
-        antialias: true, 
-        alpha: true 
-      });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.xr.enabled = true;
-      renderer.xr.setFoveation(0);
-      rendererRef.current = renderer;
-
-      // Create a simple cube
-      const geometry = new THREE.BoxGeometry(1, 1, 1);
-      const material = new THREE.MeshPhongMaterial({ color: 0x6666ff });
-      const cube = new THREE.Mesh(geometry, material);
-      cube.position.z = -3;
-      scene.add(cube);
-
-      // Add a sphere
-      const sphereGeometry = new THREE.SphereGeometry(0.5, 32, 32);
-      const sphereMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff });
-      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-      sphere.position.set(2, 0, -3);
-      scene.add(sphere);
-
-      // Add lighting
-      const light = new THREE.PointLight(0xffffff, 1.5);
-      light.position.set(5, 5, 5);
-      scene.add(light);
-
-      const ambientLight = new THREE.AmbientLight(0x606060);
-      scene.add(ambientLight);
-
-      // Animation loop
-      const animate = () => {
-        renderer.render(scene, camera);
-
-        // Rotate cube
-        cube.rotation.x += 0.01;
-        cube.rotation.y += 0.01;
-
-        // Rotate sphere - MORE VISIBLE
-        sphere.rotation.x += 0.02;
-        sphere.rotation.y += 0.02;
-        sphere.rotation.z += 0.015;
-      };
-
-      renderer.setAnimationLoop(animate);
-
-      // Handle window resize
-      const handleResize = () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      };
-
-      window.addEventListener('resize', handleResize);
-
-      console.log('✅ Three.js scene initialized');
-
-      return () => {
-        window.removeEventListener('resize', handleResize);
-      };
-    } catch (error) {
-      console.error('Scene setup error:', error);
-      setErrorMsg('Scene setup failed: ' + String(error));
-    }
-  };
-
   const enterVR = async () => {
+    console.log('Entering VR...');
     try {
-      console.log('Requesting immersive-vr session...');
-      
-      if (!('xr' in navigator)) {
-        throw new Error('WebXR not available');
-      }
-
+      if (!glRef.current) throw new Error('Canvas not ready');
       const session = await (navigator as any).xr.requestSession('immersive-vr', {
-        requiredFeatures: ['local-floor'],
-        optionalFeatures: ['bounded-floor']
+        optionalFeatures: ['local-floor', 'bounded-floor']
       });
-
-      sessionRef.current = session;
-      
-      if (rendererRef.current) {
-        await rendererRef.current.xr.setSession(session);
-      }
-
-      console.log('✅ VR session started');
+      await glRef.current.xr.setSession(session);
       if (isMountedRef.current) {
         setIsInVR(true);
+        setStatus('VR Active');
       }
-
       session.addEventListener('end', () => {
-        console.log('VR session ended');
-        sessionRef.current = null;
         if (isMountedRef.current) {
           setIsInVR(false);
+          setStatus('VR ended');
         }
       });
-    } catch (error: any) {
-      console.error('❌ VR error:', error);
-      if (isMountedRef.current) {
-        setErrorMsg('VR Error: ' + error.message);
-      }
-    }
-  };
-
-  const exitVR = async () => {
-    try {
-      if (sessionRef.current) {
-        console.log('Ending VR session...');
-        await sessionRef.current.end();
-        sessionRef.current = null;
-        if (isMountedRef.current) {
-          setIsInVR(false);
-        }
-      }
-    } catch (error: any) {
-      console.error('Exit error:', error);
-      if (isMountedRef.current) {
-        setErrorMsg('Exit Error: ' + error.message);
-      }
+    } catch (err: any) {
+      console.log('VR error:', err.message);
+      if (isMountedRef.current) setStatus('Error: ' + err.message);
     }
   };
 
   return (
-    <div
-      style={{
-        width: '100vw',
-        height: '100vh',
-        background: '#000',
-        overflow: 'hidden',
-        margin: 0,
-        padding: 0,
-        position: 'relative'
-      }}
-    >
-      <canvas
-        ref={canvasRef}
-        style={{
-          display: 'block',
-          width: '100%',
-          height: '100%',
-          position: 'absolute',
-          top: 0,
-          left: 0
-        }}
-      />
+    <div style={{ width: '100vw', height: '100vh', background: '#000' }}>
+      <Canvas camera={{ position: [0, 1.6, 3], fov: 75 }} onCreated={({ gl }) => {
+        gl.xr.enabled = true;
+        glRef.current = gl;
+      }}>
+        <SimpleScene />
+      </Canvas>
 
       {!isInVR && (
-        <div
-          style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            background: 'rgba(0, 0, 0, 0.95)',
-            padding: '40px',
-            borderRadius: '20px',
-            textAlign: 'center',
-            border: '2px solid #6666ff',
-            zIndex: 100,
-            maxWidth: '500px'
-          }}
-        >
-          <div style={{ fontSize: '48px', marginBottom: '20px' }}>🌌</div>
-
-          <div
-            style={{
-              color: '#fff',
-              fontSize: '32px',
-              fontFamily: 'monospace',
-              marginBottom: '20px',
-              fontWeight: 'bold'
-            }}
-          >
-            VERA
-          </div>
-
-          <div
-            style={{
-              color: '#999',
-              fontSize: '14px',
-              fontFamily: 'monospace',
-              marginBottom: '30px'
-            }}
-          >
-            Hyperdimensional VR Experience
-          </div>
-
-          <div
-            style={{
-              color: '#666',
-              fontSize: '11px',
-              fontFamily: 'monospace',
-              marginBottom: '20px',
-              padding: '10px',
-              background: 'rgba(100, 100, 100, 0.1)',
-              borderRadius: '6px'
-            }}
-          >
-            Browser: {typeof navigator !== 'undefined' ? navigator.userAgent.substring(0, 50) : 'Unknown'}
-            <br />
-            WebXR: {'xr' in (navigator as any) ? 'Available' : 'Not Available'}
-            <br />
-            VR Support: {isVRSupported ? '✅ Yes' : '❌ No'}
-          </div>
-
-          {isVRSupported ? (
-            <>
-              <button
-                onClick={enterVR}
-                style={{
-                  padding: '20px 50px',
-                  fontSize: '20px',
-                  background: '#6666ff',
-                  border: '2px solid #8888ff',
-                  borderRadius: '15px',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  fontFamily: 'monospace',
-                  fontWeight: 'bold',
-                  boxShadow: '0 0 30px rgba(102, 102, 255, 0.8)',
-                  marginBottom: '20px',
-                  transition: 'all 0.2s'
-                }}
-              >
-                🥽 ENTER VR
-              </button>
-
-              <div
-                style={{
-                  color: '#6f6',
-                  fontSize: '12px',
-                  fontFamily: 'monospace'
-                }}
-              >
-                ✅ VR Ready
-              </div>
-            </>
-          ) : (
-            <>
-              <div
-                style={{
-                  color: '#f66',
-                  fontSize: '12px',
-                  fontFamily: 'monospace',
-                  padding: '15px',
-                  background: 'rgba(255, 0, 0, 0.1)',
-                  borderRadius: '8px',
-                  marginBottom: '15px'
-                }}
-              >
-                ⚠️ immersive-vr Not Detected
-                <br />
-                (But we can still try!)
-              </div>
-              
-              <button
-                onClick={enterVR}
-                style={{
-                  padding: '20px 50px',
-                  fontSize: '20px',
-                  background: '#6666ff',
-                  border: '2px solid #8888ff',
-                  borderRadius: '15px',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  fontFamily: 'monospace',
-                  fontWeight: 'bold',
-                  boxShadow: '0 0 30px rgba(102, 102, 255, 0.8)',
-                  marginBottom: '20px',
-                  transition: 'all 0.2s'
-                }}
-              >
-                🥽 TRY VR ANYWAY
-              </button>
-            </>
-          )}
-
-          {errorMsg && (
-            <div
-              style={{
-                color: '#f99',
-                fontSize: '11px',
-                fontFamily: 'monospace',
-                marginTop: '15px',
-                padding: '10px',
-                background: 'rgba(255, 0, 0, 0.15)',
-                borderRadius: '6px',
-                maxHeight: '80px',
-                overflow: 'auto'
-              }}
-            >
-              Error: {errorMsg}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.95)', padding: '40px', borderRadius: '20px',
+            border: '2px solid #6666ff', maxWidth: '90%'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '30px', fontSize: '48px' }}>🌌</div>
+            <div style={{
+              color: '#fff', fontSize: '32px', fontFamily: 'monospace', 
+              fontWeight: 'bold', marginBottom: '20px', textAlign: 'center'
+            }}>
+              VERA DEBUG
             </div>
-          )}
+            <div style={{
+              background: 'rgba(102, 102, 255, 0.1)', padding: '15px', borderRadius: '10px',
+              marginBottom: '20px', fontFamily: 'monospace', fontSize: '14px', 
+              color: '#fff', textAlign: 'center'
+            }}>
+              {status}
+            </div>
+            {vrSupported && (
+              <button onClick={enterVR} style={{
+                width: '100%', padding: '20px', fontSize: '20px', background: '#6666ff',
+                border: '2px solid #8888ff', borderRadius: '10px', color: '#fff',
+                cursor: 'pointer', fontFamily: 'monospace', fontWeight: 'bold'
+              }}>
+                ENTER VR
+              </button>
+            )}
+            {logs.length > 0 && (
+              <div style={{ marginTop: '20px' }}>
+                <div style={{ color: '#6f6', fontSize: '12px', fontFamily: 'monospace', marginBottom: '10px' }}>
+                  LOGS:
+                </div>
+                <div style={{
+                  background: '#000', padding: '10px', borderRadius: '5px',
+                  fontFamily: 'monospace', fontSize: '11px', color: '#0f0', maxHeight: '150px', overflow: 'auto'
+                }}>
+                  {logs.map((log, i) => (
+                    <div key={i}>{log}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {errors.length > 0 && (
+              <div style={{ marginTop: '20px' }}>
+                <div style={{ color: '#f66', fontSize: '12px', fontFamily: 'monospace', marginBottom: '10px' }}>
+                  ERRORS:
+                </div>
+                <div style={{
+                  background: 'rgba(255, 0, 0, 0.1)', border: '1px solid #f66',
+                  padding: '10px', borderRadius: '5px', fontFamily: 'monospace',
+                  fontSize: '10px', color: '#f66', maxHeight: '200px', overflow: 'auto'
+                }}>
+                  {errors.map((error, i) => (
+                    <div key={i} style={{ marginBottom: '5px' }}>{error}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {isInVR && (
-        <div
-          style={{
-            position: 'fixed',
-            top: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(0, 255, 0, 0.9)',
-            color: '#000',
-            padding: '12px 24px',
-            borderRadius: '20px',
-            fontFamily: 'monospace',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            zIndex: 1000,
-            display: 'flex',
-            gap: '15px',
-            alignItems: 'center'
-          }}
-        >
-          <span>✅ IN VR MODE</span>
-          <button
-            onClick={exitVR}
-            style={{
-              padding: '8px 16px',
-              fontSize: '12px',
-              background: '#ff6666',
-              border: '1px solid #ff8888',
-              borderRadius: '8px',
-              color: '#fff',
-              cursor: 'pointer',
-              fontFamily: 'monospace',
-              fontWeight: 'bold'
-            }}
-          >
-            EXIT
-          </button>
+        <div style={{
+          position: 'absolute', top: '20px', left: '20px', right: '20px',
+          background: 'rgba(0, 0, 0, 0.9)', padding: '20px', borderRadius: '15px',
+          border: '2px solid #6f6', fontFamily: 'monospace', fontSize: '14px',
+          color: '#fff', zIndex: 1000, maxHeight: '80vh', overflow: 'auto'
+        }}>
+          <div style={{
+            color: '#6f6', fontSize: '18px', marginBottom: '15px',
+            fontWeight: 'bold', textAlign: 'center'
+          }}>
+            VR ACTIVE
+          </div>
+          <div style={{
+            background: 'rgba(0, 255, 0, 0.1)', padding: '10px', borderRadius: '8px',
+            marginBottom: '15px', textAlign: 'center', color: '#6f6'
+          }}>
+            Look for red cube + cyan sphere
+          </div>
+          {logs.length > 0 && (
+            <div style={{ marginBottom: '15px' }}>
+              <div style={{ color: '#6f6', marginBottom: '5px', fontSize: '12px' }}>LOGS:</div>
+              <div style={{
+                background: '#000', padding: '8px', borderRadius: '5px',
+                fontSize: '11px', color: '#0f0', maxHeight: '100px', overflow: 'auto'
+              }}>
+                {logs.slice(-5).map((log, i) => (
+                  <div key={i}>{log}</div>
+                ))}
+              </div>
+            </div>
+          )}
+          {errors.length > 0 && (
+            <div>
+              <div style={{ color: '#f66', marginBottom: '5px', fontSize: '12px' }}>ERRORS:</div>
+              <div style={{
+                background: 'rgba(255, 0, 0, 0.2)', border: '1px solid #f66',
+                padding: '8px', borderRadius: '5px', fontSize: '10px',
+                color: '#f66', maxHeight: '150px', overflow: 'auto'
+              }}>
+                {errors.map((error, i) => (
+                  <div key={i} style={{ marginBottom: '3px' }}>{error}</div>
+                ))}
+              </div>
+            </div>
+          )}
+          {errors.length === 0 && (
+            <div style={{ textAlign: 'center', color: '#6f6', fontSize: '12px', padding: '10px' }}>
+              No errors
+            </div>
+          )}
         </div>
       )}
     </div>
