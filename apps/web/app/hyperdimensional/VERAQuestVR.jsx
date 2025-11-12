@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { VRButton, XR, Controllers, Hands } from '@react-three/xr';
+import { VRButton, XR } from '@react-three/xr';
 import * as THREE from 'three';
 
 // Import all VERA components
@@ -339,9 +339,11 @@ function VolumetricAtmosphere({ breathState, color = '#6666ff' }) {
 
 function VERAVRScene({ nervousSystemState, setNervousSystemState }) {
   const breathState = useBreathing(6);
-  const voiceSystem = useVoiceSystem();
   const [hasIntroduced, setHasIntroduced] = useState(false);
   const veraGroupRef = useRef();
+  
+  // Audio data placeholder (voice system not yet initialized in VR)
+  const audioData = { low: 0, mid: 0, high: 0, overall: 0 };
 
   // VERA floats in front of user at eye level
   useFrame(({ camera }) => {
@@ -427,17 +429,13 @@ function VERAVRScene({ nervousSystemState, setNervousSystemState }) {
 
         {/* Audio-Reactive */}
         <AudioReactiveSystem
-          audioData={voiceSystem.audioData}
-          isSpeaking={voiceSystem.isSpeaking}
+          audioData={audioData}
+          isSpeaking={false}
           color={currentColor}
         />
       </group>
 
-      {/* Quest 3 hand tracking */}
-      <Hands />
-
-      {/* Quest 3 controllers */}
-      <Controllers />
+      {/* Quest 3 hand tracking and controllers are handled by XR parent */}
     </>
   );
 }

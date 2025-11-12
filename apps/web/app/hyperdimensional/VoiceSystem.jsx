@@ -15,10 +15,8 @@ export const VOICE_CONFIG = {
   // Replace with your ElevenLabs API key
   apiKey: 'YOUR_ELEVENLABS_API_KEY',
   
-  // Voice ID for VERA (use ElevenLabs voice library)
-  // Recommended: "Rachel" for warm, calm presence
-  // Or create custom voice for VERA
-  voiceId: 'YOUR_VOICE_ID',
+  // Your custom VERA voice ID
+  voiceId: 'ROMJ9yK1NAMuu1ggrjDW',
   
   // Voice settings
   stability: 0.5, // 0-1, higher = more stable/consistent

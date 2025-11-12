@@ -9,8 +9,8 @@ export const envSchema = z.object({
   ELEVENLABS_VOICE_ID: z
     .string()
     .min(1)
-    .default('uYXf8XasLslADfZ2MB4u'),
-  ELEVENLABS_MODEL_ID: z.string().min(1).default('eleven_turbo_v2'),
+    .default('ROMJ9yK1NAMuu1ggrjDW'),
+  ELEVENLABS_MODEL_ID: z.string().min(1).default('eleven_multilingual_v2'),
   SUPABASE_URL: z.string().url('SUPABASE_URL must be a valid URL'),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
   VERA_MODEL_SERVICE_URL: z
