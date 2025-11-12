@@ -53,8 +53,8 @@ export default function VERAVRPage() {
         rendererRef.current = renderer;
         container.appendChild(renderer.domElement);
 
-        // Single calm glowing orb - VERA presence
-        const orbGeometry = new THREE.SphereGeometry(1.2, 128, 128);
+        // Single calm glowing orb - VERA presence - positioned at eye level
+        const orbGeometry = new THREE.SphereGeometry(0.8, 128, 128);
         const orbMaterial = new THREE.MeshPhongMaterial({
           color: 0x8899ff,
           emissive: 0x5577dd,
@@ -63,8 +63,39 @@ export default function VERAVRPage() {
           wireframe: false
         });
         const orb = new THREE.Mesh(orbGeometry, orbMaterial);
-        orb.position.z = -4;
+        orb.position.set(0, 0, -2.5);
         scene.add(orb);
+
+        // Add text display using canvas texture
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#f5f5ff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          ctx.fillStyle = '#2c3e50';
+          ctx.font = 'bold 120px "Segoe UI"';
+          ctx.textAlign = 'center';
+          ctx.fillText('I am VERA', canvas.width / 2, 150);
+
+          ctx.fillStyle = '#5a6c7d';
+          ctx.font = '48px "Segoe UI"';
+          ctx.fillText('Your nervous system intelligence.', canvas.width / 2, 240);
+
+          ctx.fillStyle = '#6b7d8e';
+          ctx.font = '40px "Segoe UI"';
+          ctx.fillText('I breathe with you. I regulate with you.', canvas.width / 2, 350);
+          ctx.fillText('I keep you organized and sane.', canvas.width / 2, 430);
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const textMaterial = new THREE.MeshBasicMaterial({ map: texture });
+        const textGeometry = new THREE.PlaneGeometry(4, 2);
+        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+        textMesh.position.set(0, 1.5, -3);
+        scene.add(textMesh);
 
         // Soft lighting - mimics the image's gentle glow
         const mainLight = new THREE.PointLight(0xffffff, 1.2);
@@ -77,6 +108,57 @@ export default function VERAVRPage() {
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
         scene.add(ambientLight);
+
+        // Create interactive buttons in VR
+        const buttonGeometry = new THREE.BoxGeometry(0.6, 0.15, 0.05);
+        const buttonMaterialNormal = new THREE.MeshPhongMaterial({ color: 0x8899ff });
+        const buttonMaterialHover = new THREE.MeshPhongMaterial({ color: 0xaa99ff });
+
+        const enterButton = new THREE.Mesh(buttonGeometry, buttonMaterialNormal);
+        enterButton.position.set(-0.4, -0.8, -2.5);
+        enterButton.userData.name = 'enterVR';
+        scene.add(enterButton);
+
+        const learnButton = new THREE.Mesh(buttonGeometry, buttonMaterialNormal);
+        learnButton.position.set(0.4, -0.8, -2.5);
+        learnButton.userData.name = 'learn';
+        scene.add(learnButton);
+
+        // Store buttons for interaction
+        const buttons = [enterButton, learnButton];
+        const raycaster = new THREE.Raycaster();
+        const controller1 = renderer.xr.getController(0);
+        const controller2 = renderer.xr.getController(1);
+        scene.add(controller1);
+        scene.add(controller2);
+
+        let selectedButton: any = null;
+
+        controller1.addEventListener('selectstart', () => {
+          raycaster.setFromXRController(controller1);
+          const intersects = raycaster.intersectObjects(buttons);
+          if (intersects.length > 0) {
+            selectedButton = intersects[0].object.userData.name;
+            handleButtonPress(selectedButton);
+          }
+        });
+
+        controller2.addEventListener('selectstart', () => {
+          raycaster.setFromXRController(controller2);
+          const intersects = raycaster.intersectObjects(buttons);
+          if (intersects.length > 0) {
+            selectedButton = intersects[0].object.userData.name;
+            handleButtonPress(selectedButton);
+          }
+        });
+
+        const handleButtonPress = (buttonName: string) => {
+          if (buttonName === 'enterVR') {
+            console.log('Enter button pressed in VR');
+          } else if (buttonName === 'learn') {
+            console.log('Learn button pressed in VR');
+          }
+        };
 
         // Subtle breathing animation - calm and meditative
         let frameCount = 0;
@@ -95,6 +177,18 @@ export default function VERAVRPage() {
           // Very slow rotation - barely noticeable
           orb.rotation.x += 0.0002;
           orb.rotation.y += 0.0003;
+
+          // Button hover effects based on controller proximity
+          buttons.forEach((btn) => {
+            const distance = camera.position.distanceTo(btn.position);
+            if (distance < 1.5) {
+              btn.material = buttonMaterialHover;
+              btn.scale.set(1.1, 1.1, 1.1);
+            } else {
+              btn.material = buttonMaterialNormal;
+              btn.scale.set(1, 1, 1);
+            }
+          });
 
           renderer.render(scene, camera);
         };
