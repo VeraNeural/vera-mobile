@@ -1,0 +1,12 @@
+{
+  "name": "@vera-mobile/tsconfig",
+  "version": "0.1.0",
+  "private": false,
+  "files": ["base.json", "react-library.json", "next-app.json", "node.json"],
+  "exports": {
+    "./base.json": "./base.json",
+    "./react-library.json": "./react-library.json",
+    "./next-app.json": "./next-app.json",
+    "./node.json": "./node.json"
+  }
+}

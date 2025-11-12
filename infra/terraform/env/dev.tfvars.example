@@ -1,0 +1,17 @@
+project_id               = "vera-dev-123456"
+region                   = "us-central1"
+environment              = "dev"
+vpc_cidr                 = "10.20.0.0/20"
+subnet_cidr              = "10.20.0.0/24"
+sql_instance_tier        = "db-custom-2-7680"
+sql_backup_location      = "us"
+redis_tier               = "BASIC"
+redis_memory_size_gb     = 1
+service_account_email    = "vera-dev-runner@vera-dev-123456.iam.gserviceaccount.com"
+allowed_web_origins      = ["https://dev.vera.app"]
+audio_bucket_location    = "US"
+labels = {
+  owner        = "vera"
+  environment  = "dev"
+  compliance   = "hipaa"
+}

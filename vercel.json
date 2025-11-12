@@ -1,0 +1,5 @@
+{
+  "buildCommand": "pnpm install && pnpm -F @vera-mobile/web build",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "outputDirectory": "apps/web/.next"
+}

@@ -1,0 +1,12 @@
+{
+  "name": "@vera-mobile/eslint-config",
+  "version": "0.1.0",
+  "private": false,
+  "exports": {
+    "./base": "./eslint/base.cjs"
+  },
+  "files": ["eslint"],
+  "devDependencies": {
+    "eslint": "^8.57.0"
+  }
+}
