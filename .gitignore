@@ -6,7 +6,6 @@ dist/
 .env*
 !.env.example
 !.env.shared
-pnpm-lock.yaml
 .DS_Store
 coverage/
 .idea/
