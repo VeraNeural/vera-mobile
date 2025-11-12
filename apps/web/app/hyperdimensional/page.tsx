@@ -2,11 +2,11 @@
 
 import dynamic from 'next/dynamic';
 
-const HyperdimensionalVERAContent = dynamic(
-  () => import('./HyperdimensionalContent').then(mod => ({ default: mod.HyperdimensionalVERAContent })),
+const HyperdimensionalVERA = dynamic(
+  () => import('./HyperdimensionalContent' as any),
   { ssr: false }
 );
 
-export default function HyperdimensionalVERA() {
-  return <HyperdimensionalVERAContent />;
+export default function Page() {
+  return <HyperdimensionalVERA />;
 }

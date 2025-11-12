@@ -55,7 +55,7 @@ export function VoiceWaves({ audioData, color = '#6666ff' }) {
           ref={(el) => (ringsRef.current[i] = el)}
           position={[0, 0, 0]}
         >
-          <torusGeometry args={[1, 0.05, 16, 32]} />
+          <torusGeometry args={[1 + i * 0.3, 0.05, 16, 32]} />
           <meshBasicMaterial
             color={color}
             transparent
