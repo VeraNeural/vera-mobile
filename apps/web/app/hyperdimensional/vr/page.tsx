@@ -427,200 +427,160 @@ export default function VERAVRPage() {
       }}
     >
       {!isInVR && (
-        <div
-          style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            background: 'linear-gradient(135deg, #f5f5ff 0%, #eef2ff 100%)',
-            padding: '60px 50px',
-            borderRadius: '30px',
-            textAlign: 'center',
-            border: 'none',
-            boxShadow: '0 20px 60px rgba(136, 153, 255, 0.15)',
-            zIndex: 100,
-            maxWidth: '600px',
-            fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif'
-          }}
-        >
-          {/* Glowing orb representation */}
+        <>
+          {/* Full-screen 3D background (rendered in container) */}
+          
+          {/* Bottom overlay UI - minimal and clean */}
           <div
             style={{
-              width: '120px',
-              height: '120px',
-              margin: '0 auto 40px',
-              borderRadius: '50%',
-              background: 'radial-gradient(circle at 35% 35%, #b8d0ff, #8899ff)',
-              boxShadow: '0 0 60px rgba(136, 153, 255, 0.5), inset -10px -10px 30px rgba(80, 100, 200, 0.2)',
-              animation: 'pulse 3s ease-in-out infinite'
-            }}
-          />
-
-          <div
-            style={{
-              color: '#2c3e50',
-              fontSize: '44px',
-              fontWeight: '300',
-              marginBottom: '10px',
-              letterSpacing: '1px'
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: 'linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.7) 40%, rgba(0, 0, 0, 0.85) 100%)',
+              padding: '40px 30px 50px',
+              textAlign: 'center',
+              zIndex: 100,
+              fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
+              pointerEvents: 'auto'
             }}
           >
-            I am{' '}
-            <span
+            <div
               style={{
-                color: '#b366cc',
-                fontWeight: '600'
+                maxWidth: '800px',
+                margin: '0 auto'
               }}
             >
-              VERA
-            </span>
-            .
-          </div>
-
-          <div
-            style={{
-              color: '#5a6c7d',
-              fontSize: '16px',
-              marginBottom: '20px',
-              fontWeight: '400',
-              letterSpacing: '0.5px'
-            }}
-          >
-            Your nervous system intelligence.
-          </div>
-
-          <div
-            style={{
-              color: '#6b7d8e',
-              fontSize: '15px',
-              marginBottom: '40px',
-              fontWeight: '300',
-              lineHeight: '1.6',
-              letterSpacing: '0.3px'
-            }}
-          >
-            I breathe with you. I regulate with you.
-            <br />I keep you organized and sane.
-          </div>
-
-          {isVRSupported ? (
-            <>
-              <button
-                onClick={enterVR}
-                className="vera-button"
-                style={{
-                  padding: '16px 60px',
-                  fontSize: '18px',
-                  fontWeight: '600',
-                  background: 'linear-gradient(135deg, #8899ff 0%, #aa99ff 100%)',
-                  border: 'none',
-                  borderRadius: '50px',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
-                  boxShadow: '0 10px 30px rgba(136, 153, 255, 0.35)',
-                  transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  letterSpacing: '0.5px',
-                  textTransform: 'uppercase',
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}
-                onMouseOver={(e) => {
-                  const btn = e.currentTarget;
-                  btn.style.boxShadow = '0 15px 40px rgba(136, 153, 255, 0.5)';
-                  btn.style.transform = 'translateY(-3px) scale(1.02)';
-                }}
-                onMouseOut={(e) => {
-                  const btn = e.currentTarget;
-                  btn.style.boxShadow = '0 10px 30px rgba(136, 153, 255, 0.35)';
-                  btn.style.transform = 'translateY(0) scale(1)';
-                }}
-              >
-                Enter VERA VR
-              </button>
-
+              {/* Messaging */}
               <div
                 style={{
-                  marginTop: '45px',
-                  fontSize: '13px',
-                  color: '#5a6c7d',
-                  fontWeight: '600',
-                  letterSpacing: '2px',
-                  textTransform: 'uppercase'
+                  fontSize: '16px',
+                  color: '#a8c4ff',
+                  marginBottom: '8px',
+                  fontWeight: '400',
+                  letterSpacing: '0.5px'
                 }}
               >
-                ✓ REGULATED • INTELLIGENT • ALWAYS PRESENT
+                Real-time biometric feedback
               </div>
 
               <div
                 style={{
-                  marginTop: '18px',
-                  fontSize: '14px',
-                  color: '#6b7d8e',
+                  fontSize: '13px',
+                  color: '#8899aa',
+                  marginBottom: '25px',
                   fontWeight: '400',
-                  lineHeight: '1.7',
-                  letterSpacing: '0.3px'
+                  letterSpacing: '0.5px'
                 }}
               >
-                I calm your nervous system. I think ten steps ahead. I am here for you, always.
+                Evidence-based regulation • AI-powered insights • VR immersion
+              </div>
+
+              {/* Stats line */}
+              <div
+                style={{
+                  fontSize: '12px',
+                  color: '#7a9aaa',
+                  marginBottom: '30px',
+                  letterSpacing: '0.5px'
+                }}
+              >
+                <span style={{ color: '#66cc88', marginRight: '20px' }}>● Vagal Tone: 84%</span>
+                <span style={{ color: '#88aaff' }}>● Coherence: 86%</span>
+              </div>
+
+              {/* Action Button */}
+              {isVRSupported ? (
+                <button
+                  onClick={enterVR}
+                  className="vera-button"
+                  style={{
+                    padding: '14px 50px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    background: 'linear-gradient(135deg, #aa66ff 0%, #dd77ff 100%)',
+                    border: 'none',
+                    borderRadius: '50px',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    boxShadow: '0 8px 25px rgba(170, 102, 255, 0.4)',
+                    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    letterSpacing: '1px',
+                    textTransform: 'uppercase',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                  onMouseOver={(e) => {
+                    const btn = e.currentTarget;
+                    btn.style.boxShadow = '0 12px 35px rgba(170, 102, 255, 0.6)';
+                    btn.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseOut={(e) => {
+                    const btn = e.currentTarget;
+                    btn.style.boxShadow = '0 8px 25px rgba(170, 102, 255, 0.4)';
+                    btn.style.transform = 'scale(1)';
+                  }}
+                >
+                  Enter VERA
+                </button>
+              ) : (
+                <div
+                  style={{
+                    color: '#ff9999',
+                    fontSize: '13px',
+                    padding: '12px 20px',
+                    background: 'rgba(200, 100, 100, 0.15)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(200, 100, 100, 0.3)',
+                    letterSpacing: '0.3px',
+                    display: 'inline-block'
+                  }}
+                >
+                  ✗ Open on Meta Quest 3
+                </div>
+              )}
+
+              {/* Bottom hint */}
+              <div
+                style={{
+                  marginTop: '30px',
+                  fontSize: '11px',
+                  color: '#6a7a8a',
+                  fontWeight: '400',
+                  letterSpacing: '0.5px'
+                }}
+              >
+                Hover the orb to feel the connection
               </div>
 
               {vrStatus && (
                 <div
                   style={{
-                    marginTop: '20px',
-                    fontSize: '12px',
-                    color: '#8899aa',
-                    fontWeight: '500',
-                    padding: '10px 15px',
-                    background: 'rgba(136, 153, 255, 0.08)',
-                    borderRadius: '8px',
-                    letterSpacing: '0.5px'
+                    marginTop: '12px',
+                    fontSize: '11px',
+                    color: '#88aacc',
+                    fontWeight: '400'
                   }}
                 >
                   {vrStatus}
                 </div>
               )}
-            </>
-          ) : (
-            <div
-              style={{
-                color: '#d99999',
-                fontSize: '14px',
-                padding: '20px',
-                background: 'rgba(200, 100, 100, 0.08)',
-                borderRadius: '12px',
-                border: '1px solid rgba(200, 100, 100, 0.3)',
-                letterSpacing: '0.3px',
-                lineHeight: '1.6'
-              }}
-            >
-              ✗ VR Not Available
-              <br />
-              <span style={{ fontSize: '12px', color: '#999', marginTop: '8px', display: 'block' }}>
-                Please open on Meta Quest 3 browser
-              </span>
-            </div>
-          )}
 
-          {errorMsg && (
-            <div
-              style={{
-                color: '#d99999',
-                fontSize: '13px',
-                marginTop: '20px',
-                padding: '15px',
-                background: 'rgba(200, 100, 100, 0.1)',
-                borderRadius: '8px',
-                border: '1px solid rgba(200, 100, 100, 0.3)',
-                letterSpacing: '0.3px'
-              }}
-            >
-              {errorMsg}
+              {errorMsg && (
+                <div
+                  style={{
+                    marginTop: '12px',
+                    fontSize: '11px',
+                    color: '#ff9999',
+                    fontWeight: '400'
+                  }}
+                >
+                  {errorMsg}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+        </>
       )}
 
       <style>{`
