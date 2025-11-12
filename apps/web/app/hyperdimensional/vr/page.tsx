@@ -9,8 +9,11 @@ export default function VERAVRPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const sessionRef = useRef<any>(null);
   const rendererRef = useRef<any>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     // Check VR support
     console.log('Navigator XR available:', typeof navigator !== 'undefined' && 'xr' in navigator);
     
@@ -19,7 +22,9 @@ export default function VERAVRPage() {
       (navigator as any).xr.isSessionSupported('immersive-vr')
         .then((supported: boolean) => {
           console.log('✅ immersive-vr supported:', supported);
-          setIsVRSupported(supported);
+          if (isMountedRef.current) {
+            setIsVRSupported(supported);
+          }
         })
         .catch((err: any) => {
           console.error('❌ VR check error:', err);
@@ -32,11 +37,17 @@ export default function VERAVRPage() {
         });
     } else {
       console.log('❌ WebXR not available');
-      setErrorMsg('WebXR not available');
+      if (isMountedRef.current) {
+        setErrorMsg('WebXR not available');
+      }
     }
 
     // Setup Three.js scene
     setupScene();
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const setupScene = async () => {
@@ -139,7 +150,7 @@ export default function VERAVRPage() {
 
       const session = await (navigator as any).xr.requestSession('immersive-vr', {
         requiredFeatures: ['local-floor'],
-        optionalFeatures: ['bounded-floor', 'hand-tracking']
+        optionalFeatures: ['bounded-floor']
       });
 
       sessionRef.current = session;
@@ -149,16 +160,22 @@ export default function VERAVRPage() {
       }
 
       console.log('✅ VR session started');
-      setIsInVR(true);
+      if (isMountedRef.current) {
+        setIsInVR(true);
+      }
 
       session.addEventListener('end', () => {
         console.log('VR session ended');
         sessionRef.current = null;
-        setIsInVR(false);
+        if (isMountedRef.current) {
+          setIsInVR(false);
+        }
       });
     } catch (error: any) {
       console.error('❌ VR error:', error);
-      setErrorMsg('VR Error: ' + error.message);
+      if (isMountedRef.current) {
+        setErrorMsg('VR Error: ' + error.message);
+      }
     }
   };
 
@@ -168,11 +185,15 @@ export default function VERAVRPage() {
         console.log('Ending VR session...');
         await sessionRef.current.end();
         sessionRef.current = null;
-        setIsInVR(false);
+        if (isMountedRef.current) {
+          setIsInVR(false);
+        }
       }
     } catch (error: any) {
       console.error('Exit error:', error);
-      setErrorMsg('Exit Error: ' + error.message);
+      if (isMountedRef.current) {
+        setErrorMsg('Exit Error: ' + error.message);
+      }
     }
   };
 
