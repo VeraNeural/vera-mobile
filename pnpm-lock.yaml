@@ -201,6 +201,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@react-three/fiber':
+        specifier: ^9.4.0
+        version: 9.4.0(@types/react@18.3.26)(react-dom@18.2.0)(react@18.2.0)(three@0.181.1)
       '@react-three/xr':
         specifier: ^6.6.27
         version: 6.6.27(@react-three/fiber@9.4.0)(@types/react@18.3.26)(react-dom@18.2.0)(react@18.2.0)(three@0.181.1)
@@ -222,6 +225,9 @@ importers:
       react-dom:
         specifier: 18.2.0
         version: 18.2.0(react@18.2.0)
+      three:
+        specifier: ^0.181.1
+        version: 0.181.1
       zod:
         specifier: ^3.22.4
         version: 3.25.76

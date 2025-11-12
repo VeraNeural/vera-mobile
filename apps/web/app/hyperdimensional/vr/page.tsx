@@ -1,306 +1,270 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
-export default function VERAQuestVR() {
-  const containerRef = useRef<HTMLDivElement>(null);
+// ═══════════════════════════════════════════════════════════
+// 🥽 VERA QUEST 3 TEST - NEXT.JS VERSION
+// ═══════════════════════════════════════════════════════════
+
+function TestCube() {
+  const meshRef = useRef<THREE.Mesh>(null);
+  
+  useFrame(() => {
+    if (meshRef.current) {
+      meshRef.current.rotation.x += 0.01;
+      meshRef.current.rotation.y += 0.01;
+    }
+  });
+  
+  return (
+    <mesh ref={meshRef} position={[0, 1.6, -2]}>
+      <boxGeometry args={[0.5, 0.5, 0.5]} />
+      <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.5} />
+    </mesh>
+  );
+}
+
+function GridFloor() {
+  return (
+    <gridHelper args={[10, 10, '#444444', '#222222']} position={[0, 0, 0]} />
+  );
+}
+
+function SimpleVRScene() {
+  const { gl } = useThree();
+  
+  useEffect(() => {
+    if (gl.xr) {
+      gl.xr.enabled = true;
+    }
+  }, [gl]);
+
+  return (
+    <>
+      <color attach="background" args={['#111111']} />
+      
+      <ambientLight intensity={0.5} />
+      <pointLight position={[0, 2, 0]} intensity={2} color="#ffffff" />
+      <pointLight position={[2, 1, -2]} intensity={1} color="#6666ff" />
+      <pointLight position={[-2, 1, -2]} intensity={1} color="#ff6666" />
+      
+      <GridFloor />
+      <TestCube />
+      
+      <mesh position={[0.8, 1.6, -2]}>
+        <sphereGeometry args={[0.2, 32, 32]} />
+        <meshStandardMaterial color="#00ffff" emissive="#00ffff" emissiveIntensity={1} />
+      </mesh>
+      
+      <mesh position={[0, 2, -2]}>
+        <boxGeometry args={[1, 0.1, 0.1]} />
+        <meshStandardMaterial color="#ffff00" emissive="#ffff00" emissiveIntensity={1} />
+      </mesh>
+    </>
+  );
+}
+
+export default function VERASimpleTest() {
   const [isVRSupported, setIsVRSupported] = useState(false);
+  const [isInVR, setIsInVR] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const glRef = useRef<any>(null);
 
   useEffect(() => {
-    // Check VR support
-    if (navigator.xr) {
-      navigator.xr.isSessionSupported('immersive-vr').then(setIsVRSupported).catch(() => setIsVRSupported(false));
+    if (typeof navigator !== 'undefined' && 'xr' in navigator) {
+      (navigator as any).xr.isSessionSupported('immersive-vr')
+        .then((supported: boolean) => {
+          setIsVRSupported(supported);
+          console.log(supported ? '✅ VR supported' : '❌ VR not supported');
+        })
+        .catch((err: any) => {
+          console.error('VR check failed:', err);
+          setIsVRSupported(false);
+        });
     }
-
-    // Setup Three.js scene
-    const container = containerRef.current;
-    if (!container) return;
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setClearColor(0x000000);
-    renderer.xr.enabled = true;
-    
-    container.appendChild(renderer.domElement);
-
-    // ═══════════════════════════════════════════════════════════
-    // 🌌 VERA HYPERDIMENSIONAL CORE
-    // ═══════════════════════════════════════════════════════════
-
-    // 4D Point class for tesseract
-    class Point4D {
-      x: number; y: number; z: number; w: number;
-      constructor(x: number, y: number, z: number, w: number) {
-        this.x = x; this.y = y; this.z = z; this.w = w;
-      }
-      rotateXW(angle: number) {
-        const cos = Math.cos(angle), sin = Math.sin(angle);
-        return new Point4D(this.x * cos - this.w * sin, this.y, this.z, this.x * sin + this.w * cos);
-      }
-      rotateYW(angle: number) {
-        const cos = Math.cos(angle), sin = Math.sin(angle);
-        return new Point4D(this.x, this.y * cos - this.w * sin, this.z, this.y * sin + this.w * cos);
-      }
-      rotateZW(angle: number) {
-        const cos = Math.cos(angle), sin = Math.sin(angle);
-        return new Point4D(this.x, this.y, this.z * cos - this.w * sin, this.z * sin + this.w * cos);
-      }
-      projectTo3D(distance = 2) {
-        const factor = distance / (distance - this.w);
-        return new THREE.Vector3(this.x * factor, this.y * factor, this.z * factor);
-      }
-    }
-
-    // Generate tesseract vertices
-    function generateTesseractVertices() {
-      const vertices = [];
-      for (let i = 0; i < 16; i++) {
-        vertices.push(new Point4D(
-          (i & 1) ? 1 : -1,
-          (i & 2) ? 1 : -1,
-          (i & 4) ? 1 : -1,
-          (i & 8) ? 1 : -1
-        ));
-      }
-      return vertices;
-    }
-
-    // Generate tesseract edges
-    function generateTesseractEdges() {
-      const edges: [number, number][] = [];
-      for (let i = 0; i < 16; i++) {
-        for (let j = i + 1; j < 16; j++) {
-          const diff = i ^ j;
-          if (diff && !(diff & (diff - 1))) {
-            edges.push([i, j]);
-          }
-        }
-      }
-      return edges;
-    }
-
-    const tesseractVertices = generateTesseractVertices();
-    const tesseractEdges = generateTesseractEdges();
-
-    // Create tesseract lines
-    const linesGeometry = new THREE.BufferGeometry();
-    const linesMaterial = new THREE.LineBasicMaterial({ color: 0x6666ff, linewidth: 2 });
-    const tesseractLines = new THREE.LineSegments(linesGeometry, linesMaterial);
-    scene.add(tesseractLines);
-
-    // Create inner tesseract (dimmer)
-    const innerLinesGeometry = new THREE.BufferGeometry();
-    const innerLinesMaterial = new THREE.LineBasicMaterial({ color: 0x3333ff, linewidth: 1, transparent: true, opacity: 0.4 });
-    const innerLines = new THREE.LineSegments(innerLinesGeometry, innerLinesMaterial);
-    scene.add(innerLines);
-
-    // Breathing orb (glow sphere)
-    const glowGeometry = new THREE.SphereGeometry(1.2, 32, 32);
-    const glowMaterial = new THREE.MeshBasicMaterial({ color: 0x6666ff, transparent: true, opacity: 0.15 });
-    const glowSphere = new THREE.Mesh(glowGeometry, glowMaterial);
-    scene.add(glowSphere);
-
-    // Add lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
-    scene.add(ambientLight);
-
-    const pointLight = new THREE.PointLight(0x6666ff, 2);
-    pointLight.position.set(0, 2, 3);
-    scene.add(pointLight);
-
-    // Volumetric particles
-    const particleGeometry = new THREE.BufferGeometry();
-    const particleCount = 800;
-    const positions = new Float32Array(particleCount * 3);
-
-    for (let i = 0; i < particleCount * 3; i += 3) {
-      const radius = Math.random() * 3;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      positions[i] = radius * Math.sin(phi) * Math.cos(theta);
-      positions[i + 1] = radius * Math.sin(phi) * Math.sin(theta);
-      positions[i + 2] = radius * Math.cos(phi);
-    }
-
-    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const particleMaterial = new THREE.PointsMaterial({
-      color: 0x33ffaa,
-      size: 0.04,
-      sizeAttenuation: true,
-      transparent: true,
-      opacity: 0.7
-    });
-    const particles = new THREE.Points(particleGeometry, particleMaterial);
-    scene.add(particles);
-
-    // VERA group (follows camera)
-    const veraGroup = new THREE.Group();
-    veraGroup.position.set(0, 0, -2);
-    scene.add(veraGroup);
-
-    // Add components to VERA group
-    veraGroup.add(tesseractLines);
-    veraGroup.add(innerLines);
-    veraGroup.add(glowSphere);
-    veraGroup.add(particles);
-
-    camera.position.set(0, 1.6, 0);
-
-    // Breathing state
-    let breathState = { phase: 0, intensity: 0.5 };
-
-    // Animation loop
-    const animate = () => {
-      requestAnimationFrame(animate);
-
-      // Breathing animation
-      const time = Date.now() * 0.001;
-      const cycleTime = 10; // 10 second cycle
-      const cyclePosition = (time % cycleTime) / cycleTime;
-      
-      if (cyclePosition < 0.4) {
-        breathState.intensity = cyclePosition / 0.4;
-      } else if (cyclePosition < 0.5) {
-        breathState.intensity = 1;
-      } else if (cyclePosition < 0.9) {
-        breathState.intensity = 1 - (cyclePosition - 0.5) / 0.4;
-      } else {
-        breathState.intensity = 0.2;
-      }
-
-      // Update tesseract
-      const angleXW = time * 0.3;
-      const angleYW = time * 0.2;
-      const angleZW = time * 0.25;
-      const breathScale = 0.8 + breathState.intensity * 0.4;
-
-      const projectedVertices = tesseractVertices.map(v => 
-        v.rotateXW(angleXW).rotateYW(angleYW).rotateZW(angleZW).projectTo3D(2 + breathState.intensity * 0.5)
-      );
-
-      const positionsArray: number[] = [];
-      const innerPositionsArray: number[] = [];
-
-      tesseractEdges.forEach(([i, j]) => {
-        const v1 = projectedVertices[i];
-        const v2 = projectedVertices[j];
-        const scaledV1 = v1.clone().multiplyScalar(breathScale);
-        const scaledV2 = v2.clone().multiplyScalar(breathScale);
-
-        positionsArray.push(scaledV1.x, scaledV1.y, scaledV1.z);
-        positionsArray.push(scaledV2.x, scaledV2.y, scaledV2.z);
-
-        const innerScale = 0.6;
-        innerPositionsArray.push(scaledV1.x * innerScale, scaledV1.y * innerScale, scaledV1.z * innerScale);
-        innerPositionsArray.push(scaledV2.x * innerScale, scaledV2.y * innerScale, scaledV2.z * innerScale);
-      });
-
-      linesGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positionsArray, 3));
-      innerLinesGeometry.setAttribute('position', new THREE.Float32BufferAttribute(innerPositionsArray, 3));
-
-      glowSphere.scale.setScalar(breathScale * 1.2);
-      glowMaterial.opacity = breathState.intensity * 0.2;
-
-      // VERA follows camera gaze
-      const forward = new THREE.Vector3(0, 0, -1);
-      forward.applyQuaternion(camera.quaternion);
-      const targetPos = camera.position.clone().add(forward.multiplyScalar(2));
-      targetPos.y = camera.position.y;
-      veraGroup.position.lerp(targetPos, 0.05);
-      veraGroup.lookAt(camera.position);
-
-      renderer.render(scene, camera);
-    };
-
-    animate();
-
-    // Handle window resize
-    const handleResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (container && container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
-      linesGeometry.dispose();
-      linesMaterial.dispose();
-      innerLinesGeometry.dispose();
-      innerLinesMaterial.dispose();
-      glowGeometry.dispose();
-      glowMaterial.dispose();
-      particleGeometry.dispose();
-      particleMaterial.dispose();
-      renderer.dispose();
-    };
   }, []);
 
-  const handleVRClick = async () => {
-    if (!navigator.xr) return;
+  const enterVR = async () => {
+    if (!glRef.current) {
+      setErrorMsg('GL not ready');
+      return;
+    }
 
     try {
-      await navigator.xr.requestSession('immersive-vr', {
-        requiredFeatures: ['local-floor'],
-        optionalFeatures: ['hand-tracking']
+      console.log('Requesting VR session...');
+      
+      const session = await (navigator as any).xr.requestSession('immersive-vr', {
+        optionalFeatures: ['local-floor', 'bounded-floor']
       });
-    } catch (error) {
-      console.error('VR Error:', error);
+      
+      console.log('✅ VR session created');
+      
+      await glRef.current.xr.setSession(session);
+      console.log('✅ Session set');
+      
+      setIsInVR(true);
+
+      session.addEventListener('end', () => {
+        console.log('VR session ended');
+        setIsInVR(false);
+      });
+      
+    } catch (error: any) {
+      console.error('❌ VR failed:', error);
+      setErrorMsg('Failed: ' + error.message);
     }
   };
 
   return (
-    <div ref={containerRef} style={{ width: '100vw', height: '100vh', background: '#000' }}>
-      {isVRSupported ? (
-        <button
-          onClick={handleVRClick}
-          style={{
-            position: 'fixed',
-            bottom: '50px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            padding: '16px 32px',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            background: 'linear-gradient(135deg, #6666ff, #aa33ff)',
-            color: '#fff',
-            border: '2px solid #fff',
-            borderRadius: '50px',
-            cursor: 'pointer',
-            fontFamily: 'monospace',
-            zIndex: 1000,
-            boxShadow: '0 0 30px rgba(102, 102, 255, 0.6)'
-          }}
-        >
-          🥽 Enter VR
-        </button>
-      ) : (
+    <div style={{ width: '100vw', height: '100vh', background: '#000', position: 'relative' }}>
+      <Canvas 
+        camera={{ position: [0, 1.6, 3], fov: 75 }}
+        onCreated={({ gl }) => {
+          gl.xr.enabled = true;
+          glRef.current = gl;
+          console.log('Canvas ready, XR enabled');
+        }}
+      >
+        <SimpleVRScene />
+      </Canvas>
+
+      {!isInVR && (
         <div style={{
           position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          color: '#fff',
-          fontFamily: 'monospace',
-          textAlign: 'center',
-          padding: '40px',
-          border: '2px solid #6666ff',
-          borderRadius: '10px',
-          background: 'rgba(0,0,0,0.8)'
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          pointerEvents: 'none'
         }}>
-          <div style={{ fontSize: '24px', marginBottom: '20px' }}>🌌 VERA - Hyperdimensional Presence</div>
-          <div>VR not available on this device</div>
-          <div style={{ fontSize: '12px', marginTop: '20px', opacity: 0.6 }}>
-            Use Meta Quest 3 browser
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.9)',
+            padding: '40px',
+            borderRadius: '20px',
+            textAlign: 'center',
+            border: '2px solid #6666ff',
+            pointerEvents: 'auto'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '20px' }}>
+              🌌
+            </div>
+            
+            <div style={{
+              color: '#fff',
+              fontSize: '32px',
+              fontFamily: 'monospace',
+              marginBottom: '20px',
+              fontWeight: 'bold'
+            }}>
+              VERA TEST
+            </div>
+            
+            <div style={{
+              color: '#999',
+              fontSize: '16px',
+              fontFamily: 'monospace',
+              marginBottom: '30px'
+            }}>
+              Simple visibility test for Quest 3
+            </div>
+
+            {isVRSupported ? (
+              <>
+                <button
+                  onClick={enterVR}
+                  style={{
+                    padding: '25px 60px',
+                    fontSize: '24px',
+                    background: '#6666ff',
+                    border: '3px solid #8888ff',
+                    borderRadius: '15px',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontFamily: 'monospace',
+                    fontWeight: 'bold',
+                    boxShadow: '0 0 30px rgba(102, 102, 255, 0.8)',
+                    marginBottom: '20px'
+                  }}
+                >
+                  ENTER VR
+                </button>
+                
+                <div style={{
+                  color: '#6f6',
+                  fontSize: '14px',
+                  fontFamily: 'monospace'
+                }}>
+                  ✅ VR Ready
+                </div>
+              </>
+            ) : (
+              <div style={{
+                color: '#f66',
+                fontSize: '14px',
+                fontFamily: 'monospace',
+                padding: '20px',
+                background: 'rgba(255, 0, 0, 0.1)',
+                borderRadius: '10px'
+              }}>
+                ❌ VR Not Detected<br/>
+                Open on Quest 3 Browser
+              </div>
+            )}
+
+            {errorMsg && (
+              <div style={{
+                color: '#f66',
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                marginTop: '20px',
+                padding: '10px',
+                background: 'rgba(255, 0, 0, 0.1)',
+                borderRadius: '5px'
+              }}>
+                Error: {errorMsg}
+              </div>
+            )}
+
+            <div style={{
+              color: '#666',
+              fontSize: '12px',
+              fontFamily: 'monospace',
+              marginTop: '30px',
+              lineHeight: '1.6'
+            }}>
+              You should see:<br/>
+              • Red rotating cube<br/>
+              • Blue glowing sphere<br/>
+              • Yellow line above<br/>
+              • Grid floor below
+            </div>
           </div>
+        </div>
+      )}
+
+      {isInVR && (
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(0, 255, 0, 0.8)',
+          color: '#000',
+          padding: '10px 20px',
+          borderRadius: '20px',
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          fontWeight: 'bold',
+          zIndex: 1000
+        }}>
+          ✅ IN VR MODE
         </div>
       )}
     </div>
