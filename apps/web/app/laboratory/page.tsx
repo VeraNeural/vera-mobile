@@ -1,91 +1,97 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
+import type { ComponentType } from 'react';
+
+interface LaboratorySceneProps {
+  vagalTone?: number;
+  heartCoherence?: number;
+  nervousSystemState?: 'ventral' | 'sympathetic' | 'dorsal';
+}
+
+// Dynamic import to avoid SSR issues with Three.js
+const LaboratoryScene = dynamic<LaboratorySceneProps>(
+  () => import('../(components)/LaboratoryScene'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-screen flex items-center justify-center bg-gradient-to-br from-black via-purple-950 to-black">
+        <div className="text-white text-2xl font-light animate-pulse">
+          Loading neural environment...
+        </div>
+      </div>
+    ),
+  }
+);
 
 export default function LaboratoryPage() {
   const [isEntering, setIsEntering] = useState(false);
-  const [time, setTime] = useState(0);
-  const animationFrameRef = useRef<number>();
+  const [vagalTone, setVagalTone] = useState(50);
+  const [heartCoherence, setHeartCoherence] = useState(60);
+  const [nervousSystemState, setNervousSystemState] = useState<'ventral' | 'sympathetic' | 'dorsal'>('ventral');
+  const [isMounted, setIsMounted] = useState(false);
 
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Simulate biometric updates (replace with real data later)
   useEffect(() => {
     if (!isEntering) return;
 
-    const animate = () => {
-      setTime((t) => t + 0.016);
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-    animationFrameRef.current = requestAnimationFrame(animate);
+    const interval = setInterval(() => {
+      // Simulate realistic biometric fluctuations
+      setVagalTone(prev => Math.max(0, Math.min(100, prev + (Math.random() - 0.5) * 5)));
+      setHeartCoherence(prev => Math.max(0, Math.min(100, prev + (Math.random() - 0.5) * 4)));
+    }, 1000);
 
-    return () => {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-    };
+    return () => clearInterval(interval);
   }, [isEntering]);
 
+  // Update nervous system state based on vagal tone
+  useEffect(() => {
+    if (vagalTone > 70) {
+      setNervousSystemState('ventral');
+    } else if (vagalTone > 40) {
+      setNervousSystemState('sympathetic');
+    } else {
+      setNervousSystemState('dorsal');
+    }
+  }, [vagalTone]);
+
   const handleExit = () => {
-    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     setIsEntering(false);
-    setTime(0);
   };
+
+  if (!isMounted) {
+    return null;
+  }
 
   if (isEntering) {
     return (
-      <main className="relative w-screen h-screen bg-gradient-to-br from-black via-purple-950 to-black overflow-hidden flex items-center justify-center">
-        {/* Orb visualization with pure CSS */}
-        <div className="relative w-64 h-64 mb-16">
-          {/* Breathing orb */}
-          <div 
-            className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-300 via-purple-400 to-purple-600 shadow-2xl cursor-pointer hover:shadow-3xl transition-shadow"
-            onClick={() => window.location.href = '/laboratory/immersive'}
-            style={{
-              animation: 'breathe 4s ease-in-out infinite',
-              boxShadow: '0 0 60px rgba(167, 139, 250, 0.8), 0 0 120px rgba(124, 58, 237, 0.6)'
-            }}
-          />
-          
-          {/* Orbiting particles */}
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="absolute w-3 h-3 rounded-full"
-              style={{
-                background: ['rgba(168, 85, 247, 0.6)', 'rgba(96, 165, 250, 0.6)', 'rgba(192, 132, 250, 0.6)'][i],
-                animation: `orbit ${4 + i}s linear infinite`,
-                animationDelay: `${i * 1.3}s`,
-                top: '50%',
-                left: '50%',
-              }}
-            />
-          ))}
-          
-          <style>{`
-            @keyframes breathe {
-              0%, 100% { transform: scale(1); opacity: 0.85; }
-              50% { transform: scale(1.1); opacity: 1; }
-            }
-            @keyframes orbit {
-              0% { transform: rotate(0deg) translateX(120px) rotate(0deg); }
-              100% { transform: rotate(360deg) translateX(120px) rotate(-360deg); }
-            }
-          `}</style>
-        </div>
-
-        {/* Info overlay */}
-        <div className="absolute bottom-12 left-0 right-0 text-center">
-          <div className="text-white space-y-3">
-            <p className="text-2xl font-light">Entering Co-Regulation Space</p>
-            <div className="flex items-center justify-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-purple-400 animate-pulse" />
-              <p className="text-sm text-purple-200">Vagal Coherence: {(50 + Math.sin(time * 1.2) * 50).toFixed(0)}%</p>
-            </div>
-          </div>
-        </div>
-
+      <main className="relative w-screen h-screen">
         {/* Exit button */}
         <button
           onClick={handleExit}
-          className="absolute top-6 left-6 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium text-sm z-10"
+          className="absolute top-6 left-6 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium text-sm z-50"
         >
           ← Exit Laboratory
         </button>
+
+        {/* 3D Scene */}
+        <LaboratoryScene
+          vagalTone={vagalTone}
+          heartCoherence={heartCoherence}
+          nervousSystemState={nervousSystemState}
+        />
+
+        {/* Instructions overlay for VR */}
+        <div className="absolute top-6 right-6 bg-black/60 backdrop-blur-md px-6 py-4 rounded-xl text-white text-sm space-y-2 max-w-xs z-50">
+          <p className="font-semibold text-purple-300">VR Ready</p>
+          <p className="text-xs leading-relaxed">
+            After installing @react-three/xr, press the VR button to enter immersive mode on Quest.
+          </p>
+        </div>
       </main>
     );
   }
@@ -95,14 +101,38 @@ export default function LaboratoryPage() {
       <div className="text-center space-y-6 max-w-2xl">
         <h1 className="text-6xl font-light text-white mb-4">The Laboratory</h1>
         <p className="text-xl text-purple-200 mb-8">
-          Your nervous system + VERA's presence. Books of living knowledge. Tulips breathing with your coherence. The orb at the center holds absolute co-regulation.
+          Your nervous system + VERA's presence. 
+          <br />
+          <br />
+          Immerse yourself in 3D co-regulation. Watch your biometrics transform the environment in real-time.
         </p>
+        
+        {/* Feature highlights */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-purple-900/30 p-4 rounded-lg border border-purple-500/30">
+            <div className="text-3xl mb-2">🧠</div>
+            <div className="text-sm text-purple-200">3D Neural Visualization</div>
+          </div>
+          <div className="bg-blue-900/30 p-4 rounded-lg border border-blue-500/30">
+            <div className="text-3xl mb-2">💓</div>
+            <div className="text-sm text-blue-200">Real-time Biometrics</div>
+          </div>
+          <div className="bg-pink-900/30 p-4 rounded-lg border border-pink-500/30">
+            <div className="text-3xl mb-2">🥽</div>
+            <div className="text-sm text-pink-200">VR Ready</div>
+          </div>
+        </div>
+
         <button
           onClick={() => setIsEntering(true)}
           className="px-8 py-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-medium rounded-lg transition-all duration-300 text-lg shadow-lg hover:shadow-xl"
         >
           Enter the Orb
         </button>
+        
+        <p className="text-xs text-purple-300 mt-4">
+          Desktop: Use mouse to orbit • VR: Fully immersive experience
+        </p>
       </div>
     </main>
   );

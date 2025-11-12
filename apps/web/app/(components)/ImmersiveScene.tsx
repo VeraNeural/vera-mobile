@@ -1,8 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
-import { BreathingOrb } from './BreathingOrb';
+import LaboratoryScene from './LaboratoryScene';
 
 export default function ImmersiveScene() {
   const [vagalTone, setVagalTone] = useState(65);
@@ -14,34 +12,16 @@ export default function ImmersiveScene() {
   };
 
   return (
-    <main className="relative w-full h-screen overflow-hidden bg-black">
-      {/* 3D Canvas */}
-      <Canvas
-        camera={{ position: [0, 0, 5], fov: 45 }}
-        className="w-full h-full"
-      >
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} intensity={1} />
-        
-        {/* Immersive Breathing Orb */}
-        <BreathingOrb
-          vagalTone={vagalTone}
-          heartCoherence={heartCoherence}
-          nervousSystemState={nervousSystemState}
-        />
-        
-        {/* Orbit Controls for exploration */}
-        <OrbitControls
-          autoRotate
-          autoRotateSpeed={2}
-          enablePan={true}
-          enableZoom={true}
-          enableRotate={true}
-        />
-      </Canvas>
+    <div className="relative w-full h-screen">
+      {/* Main 3D scene */}
+      <LaboratoryScene
+        vagalTone={vagalTone}
+        heartCoherence={heartCoherence}
+        nervousSystemState={nervousSystemState}
+      />
 
-      {/* Control Panel - Bottom HUD */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-8 space-y-6">
+      {/* Control Panel - Top HUD */}
+      <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black via-black/50 to-transparent p-8 space-y-4 z-20">
         {/* State Indicators */}
         <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto">
           {/* Vagal Tone */}
@@ -107,10 +87,10 @@ export default function ImmersiveScene() {
       {/* Exit Button */}
       <button
         onClick={() => window.history.back()}
-        className="absolute top-6 left-6 px-4 py-2 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 text-purple-200 rounded text-sm transition-all z-10"
+        className="absolute top-6 left-6 px-4 py-2 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 text-purple-200 rounded text-sm transition-all z-30"
       >
         ← Exit Laboratory
       </button>
-    </main>
+    </div>
   );
 }
