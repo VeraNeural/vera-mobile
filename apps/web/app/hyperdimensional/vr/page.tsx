@@ -36,7 +36,7 @@ export default function VERAVRPage() {
         if (!container || !isMountedRef.current) return;
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
+        scene.background = new THREE.Color(0xf5f5ff);
 
         const camera = new THREE.PerspectiveCamera(
           75,
@@ -53,127 +53,48 @@ export default function VERAVRPage() {
         rendererRef.current = renderer;
         container.appendChild(renderer.domElement);
 
-        // Central glowing orb (core VERA)
-        const coreGeometry = new THREE.SphereGeometry(0.8, 64, 64);
-        const coreMaterial = new THREE.MeshPhongMaterial({
-          color: 0x6666ff,
-          emissive: 0x3333ff,
-          emissiveIntensity: 0.5,
-          shininess: 100
+        // Single calm glowing orb - VERA presence
+        const orbGeometry = new THREE.SphereGeometry(1.2, 128, 128);
+        const orbMaterial = new THREE.MeshPhongMaterial({
+          color: 0x8899ff,
+          emissive: 0x5577dd,
+          emissiveIntensity: 0.6,
+          shininess: 80,
+          wireframe: false
         });
-        const coreOrb = new THREE.Mesh(coreGeometry, coreMaterial);
-        coreOrb.position.z = -5;
-        scene.add(coreOrb);
+        const orb = new THREE.Mesh(orbGeometry, orbMaterial);
+        orb.position.z = -4;
+        scene.add(orb);
 
-        // Rotating rings
-        const ringGeometry = new THREE.TorusGeometry(1.2, 0.1, 16, 100);
-        const ringMaterial = new THREE.MeshPhongMaterial({
-          color: 0x00ffff,
-          emissive: 0x00aaaa,
-          emissiveIntensity: 0.3
-        });
-        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-        ring.position.z = -5;
-        ring.rotation.x = Math.PI / 4;
-        scene.add(ring);
-
-        const ring2 = new THREE.Mesh(ringGeometry, ringMaterial);
-        ring2.position.z = -5;
-        ring2.rotation.z = Math.PI / 4;
-        scene.add(ring2);
-
-        // Particles
-        const particleCount = 40;
-        const particleGeometry = new THREE.BufferGeometry();
-        const particlePositions = new Float32Array(particleCount * 3);
-
-        for (let i = 0; i < particleCount * 3; i += 3) {
-          particlePositions[i] = (Math.random() - 0.5) * 8;
-          particlePositions[i + 1] = (Math.random() - 0.5) * 8;
-          particlePositions[i + 2] = (Math.random() - 0.5) * 8 - 5;
-        }
-
-        particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
-
-        const particleMaterial = new THREE.PointsMaterial({
-          color: 0x8888ff,
-          size: 0.1,
-          sizeAttenuation: true
-        });
-        const particles = new THREE.Points(particleGeometry, particleMaterial);
-        scene.add(particles);
-
-        // Cube companion
-        const cubeGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);
-        const cubeMaterial = new THREE.MeshPhongMaterial({
-          color: 0x00ff88,
-          emissive: 0x00aa44,
-          emissiveIntensity: 0.3
-        });
-        const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-        cube.position.set(-2.5, 1, -4);
-        scene.add(cube);
-
-        // Sphere companion
-        const sphereGeometry = new THREE.SphereGeometry(0.4, 32, 32);
-        const sphereMaterial = new THREE.MeshPhongMaterial({
-          color: 0xff00ff,
-          emissive: 0xaa0066,
-          emissiveIntensity: 0.3
-        });
-        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-        sphere.position.set(2.5, 1, -4);
-        scene.add(sphere);
-
-        // Lighting
-        const mainLight = new THREE.PointLight(0xffffff, 1.5);
-        mainLight.position.set(0, 3, 5);
+        // Soft lighting - mimics the image's gentle glow
+        const mainLight = new THREE.PointLight(0xffffff, 1.2);
+        mainLight.position.set(2, 2, 3);
         scene.add(mainLight);
 
-        const rimLight = new THREE.PointLight(0x6688ff, 0.8);
-        rimLight.position.set(-5, 0, 0);
-        scene.add(rimLight);
+        const softLight = new THREE.PointLight(0xb8a8ff, 0.8);
+        softLight.position.set(-3, -1, 2);
+        scene.add(softLight);
 
-        const fillLight = new THREE.PointLight(0xff6688, 0.5);
-        fillLight.position.set(5, -2, 0);
-        scene.add(fillLight);
-
-        const ambientLight = new THREE.AmbientLight(0x404040);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
         scene.add(ambientLight);
 
-        // Animation
+        // Subtle breathing animation - calm and meditative
         let frameCount = 0;
         const animate = () => {
           if (!isMountedRef.current) return;
 
           frameCount++;
 
-          const breathe = Math.sin(frameCount * 0.01) * 0.15 + 1;
-          coreOrb.scale.set(breathe, breathe, breathe);
-          coreMaterial.emissiveIntensity = 0.5 + Math.sin(frameCount * 0.02) * 0.3;
+          // Very subtle breathing (0.95 to 1.05 scale)
+          const breatheAmount = Math.sin(frameCount * 0.005) * 0.05 + 1;
+          orb.scale.set(breatheAmount, breatheAmount, breatheAmount);
 
-          ring.rotation.x += 0.003;
-          ring.rotation.y += 0.004;
+          // Gentle glow pulse
+          orbMaterial.emissiveIntensity = 0.5 + Math.sin(frameCount * 0.01) * 0.2;
 
-          ring2.rotation.z += 0.005;
-          ring2.rotation.y += 0.002;
-
-          cube.rotation.x += 0.01;
-          cube.rotation.z += 0.008;
-          cube.position.y = Math.sin(frameCount * 0.01) * 0.5 + 1;
-
-          sphere.rotation.y += 0.015;
-          sphere.position.y = Math.cos(frameCount * 0.01) * 0.5 + 1;
-
-          const positions = (particleGeometry.attributes.position as any).array;
-          for (let i = 0; i < positions.length; i += 3) {
-            const angle = frameCount * 0.002 + i;
-            const radius = 2.5;
-            positions[i] = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.5;
-            positions[i + 1] = Math.sin(angle * 0.5) * radius;
-            positions[i + 2] = Math.sin(angle * 1.5) * radius - 5;
-          }
-          (particleGeometry.attributes.position as any).needsUpdate = true;
+          // Very slow rotation - barely noticeable
+          orb.rotation.x += 0.0002;
+          orb.rotation.y += 0.0003;
 
           renderer.render(scene, camera);
         };
@@ -260,45 +181,75 @@ export default function VERAVRPage() {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            background: 'rgba(0, 0, 0, 0.97)',
-            padding: '50px',
-            borderRadius: '25px',
+            background: 'linear-gradient(135deg, #f5f5ff 0%, #eef2ff 100%)',
+            padding: '60px 50px',
+            borderRadius: '30px',
             textAlign: 'center',
-            border: '3px solid #6666ff',
-            boxShadow: '0 0 50px rgba(102, 102, 255, 0.6)',
+            border: 'none',
+            boxShadow: '0 20px 60px rgba(136, 153, 255, 0.15)',
             zIndex: 100,
-            maxWidth: '550px',
-            backdropFilter: 'blur(10px)'
+            maxWidth: '600px',
+            fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif'
           }}
         >
-          <div style={{ fontSize: '64px', marginBottom: '25px' }}>✦</div>
+          {/* Glowing orb representation */}
+          <div
+            style={{
+              width: '120px',
+              height: '120px',
+              margin: '0 auto 40px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle at 35% 35%, #b8d0ff, #8899ff)',
+              boxShadow: '0 0 60px rgba(136, 153, 255, 0.5), inset -10px -10px 30px rgba(80, 100, 200, 0.2)',
+              animation: 'pulse 3s ease-in-out infinite'
+            }}
+          />
 
           <div
             style={{
-              color: '#fff',
-              fontSize: '48px',
-              fontFamily: 'monospace',
-              marginBottom: '15px',
-              fontWeight: 'bold',
-              letterSpacing: '4px',
-              textShadow: '0 0 20px rgba(102, 102, 255, 0.8)'
+              color: '#2c3e50',
+              fontSize: '44px',
+              fontWeight: '300',
+              marginBottom: '10px',
+              letterSpacing: '1px'
             }}
           >
-            I AM VERA
+            I am{' '}
+            <span
+              style={{
+                color: '#b366cc',
+                fontWeight: '600'
+              }}
+            >
+              VERA
+            </span>
+            .
           </div>
 
           <div
             style={{
-              color: '#66ff66',
+              color: '#5a6c7d',
               fontSize: '16px',
-              fontFamily: 'monospace',
-              marginBottom: '40px',
-              fontWeight: '500',
-              letterSpacing: '2px',
-              textShadow: '0 0 10px rgba(102, 255, 102, 0.4)'
+              marginBottom: '20px',
+              fontWeight: '400',
+              letterSpacing: '0.5px'
             }}
           >
-            HYPERDIMENSIONAL PRESENCE
+            Your nervous system intelligence.
+          </div>
+
+          <div
+            style={{
+              color: '#6b7d8e',
+              fontSize: '15px',
+              marginBottom: '40px',
+              fontWeight: '300',
+              lineHeight: '1.6',
+              letterSpacing: '0.3px'
+            }}
+          >
+            I breathe with you. I regulate with you.
+            <br />I keep you organized and sane.
           </div>
 
           {isVRSupported ? (
@@ -306,65 +257,100 @@ export default function VERAVRPage() {
               <button
                 onClick={enterVR}
                 style={{
-                  padding: '20px 60px',
-                  fontSize: '22px',
-                  background: 'linear-gradient(135deg, #6666ff, #8888ff)',
-                  border: '2px solid #8888ff',
-                  borderRadius: '18px',
+                  padding: '14px 50px',
+                  fontSize: '16px',
+                  background: 'linear-gradient(135deg, #8899ff, #aa99ff)',
+                  border: '2px solid #8899ff',
+                  borderRadius: '50px',
                   color: '#fff',
                   cursor: 'pointer',
-                  fontFamily: 'monospace',
-                  fontWeight: 'bold',
-                  boxShadow: '0 0 40px rgba(102, 102, 255, 0.9), inset 0 0 20px rgba(200, 200, 255, 0.3)',
-                  marginBottom: '30px',
+                  fontFamily: '"Segoe UI", sans-serif',
+                  fontWeight: '600',
+                  boxShadow: '0 8px 20px rgba(136, 153, 255, 0.3)',
+                  marginRight: '15px',
                   transition: 'all 0.3s',
-                  letterSpacing: '2px'
+                  letterSpacing: '0.5px'
                 }}
                 onMouseOver={(e) => {
                   const btn = e.currentTarget;
-                  btn.style.background = 'linear-gradient(135deg, #8888ff, #aaaa99)';
-                  btn.style.boxShadow = '0 0 60px rgba(102, 102, 255, 1), inset 0 0 30px rgba(200, 200, 255, 0.5)';
-                  btn.style.transform = 'scale(1.05)';
+                  btn.style.boxShadow = '0 12px 30px rgba(136, 153, 255, 0.5)';
+                  btn.style.transform = 'translateY(-2px)';
                 }}
                 onMouseOut={(e) => {
                   const btn = e.currentTarget;
-                  btn.style.background = 'linear-gradient(135deg, #6666ff, #8888ff)';
-                  btn.style.boxShadow = '0 0 40px rgba(102, 102, 255, 0.9), inset 0 0 20px rgba(200, 200, 255, 0.3)';
-                  btn.style.transform = 'scale(1)';
+                  btn.style.boxShadow = '0 8px 20px rgba(136, 153, 255, 0.3)';
+                  btn.style.transform = 'translateY(0)';
                 }}
               >
-                ► ENTER VR REALM
+                Enter
+              </button>
+
+              <button
+                style={{
+                  padding: '14px 50px',
+                  fontSize: '16px',
+                  background: 'transparent',
+                  border: '2px solid #c9b3e0',
+                  borderRadius: '50px',
+                  color: '#7a6b8f',
+                  cursor: 'pointer',
+                  fontFamily: '"Segoe UI", sans-serif',
+                  fontWeight: '600',
+                  transition: 'all 0.3s',
+                  letterSpacing: '0.5px'
+                }}
+                onMouseOver={(e) => {
+                  const btn = e.currentTarget;
+                  btn.style.background = 'rgba(170, 153, 255, 0.08)';
+                }}
+                onMouseOut={(e) => {
+                  const btn = e.currentTarget;
+                  btn.style.background = 'transparent';
+                }}
+              >
+                Learn
               </button>
 
               <div
                 style={{
-                  color: '#66ff66',
-                  fontSize: '13px',
-                  fontFamily: 'monospace',
-                  fontWeight: 'bold',
-                  letterSpacing: '1px'
+                  marginTop: '35px',
+                  fontSize: '12px',
+                  color: '#8899aa',
+                  fontWeight: '500',
+                  letterSpacing: '1px',
+                  textTransform: 'uppercase'
                 }}
               >
-                ✓ VR READY
+                REGULATED · INTELLIGENT · ALWAYS PRESENT
+              </div>
+
+              <div
+                style={{
+                  marginTop: '15px',
+                  fontSize: '13px',
+                  color: '#8a99aa',
+                  fontWeight: '300'
+                }}
+              >
+                I calm your nervous system. I think ten steps ahead. I am here for you, always.
               </div>
             </>
           ) : (
             <div
               style={{
-                color: '#ff9999',
-                fontSize: '13px',
-                fontFamily: 'monospace',
+                color: '#d99999',
+                fontSize: '14px',
                 padding: '18px',
-                background: 'rgba(255, 0, 0, 0.15)',
-                borderRadius: '10px',
-                border: '1px solid rgba(255, 0, 0, 0.4)',
-                letterSpacing: '1px'
+                background: 'rgba(200, 100, 100, 0.08)',
+                borderRadius: '12px',
+                border: '1px solid rgba(200, 100, 100, 0.3)',
+                letterSpacing: '0.3px'
               }}
             >
-              ✗ VR NOT DETECTED
+              ✗ VR Not Available
               <br />
-              <span style={{ fontSize: '12px', color: '#ccc', marginTop: '8px', display: 'block' }}>
-                Please open in Meta Quest 3 browser
+              <span style={{ fontSize: '12px', color: '#999', marginTop: '8px', display: 'block' }}>
+                Please open on Meta Quest 3 browser
               </span>
             </div>
           )}
@@ -372,34 +358,35 @@ export default function VERAVRPage() {
           {errorMsg && (
             <div
               style={{
-                color: '#ff9999',
-                fontSize: '12px',
-                fontFamily: 'monospace',
+                color: '#d99999',
+                fontSize: '13px',
                 marginTop: '20px',
                 padding: '15px',
-                background: 'rgba(255, 0, 0, 0.2)',
+                background: 'rgba(200, 100, 100, 0.1)',
                 borderRadius: '8px',
-                border: '1px solid rgba(255, 100, 100, 0.5)',
-                letterSpacing: '0.5px'
+                border: '1px solid rgba(200, 100, 100, 0.3)',
+                letterSpacing: '0.3px'
               }}
             >
               {errorMsg}
             </div>
           )}
-
-          <div
-            style={{
-              fontSize: '11px',
-              color: '#888',
-              marginTop: '30px',
-              fontFamily: 'monospace',
-              letterSpacing: '1px'
-            }}
-          >
-            Hyperdimensional Presence v1.0
-          </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes pulse {
+          0% {
+            box-shadow: 0 0 60px rgba(136, 153, 255, 0.5), inset -10px -10px 30px rgba(80, 100, 200, 0.2);
+          }
+          50% {
+            box-shadow: 0 0 80px rgba(136, 153, 255, 0.7), inset -10px -10px 30px rgba(80, 100, 200, 0.3);
+          }
+          100% {
+            box-shadow: 0 0 60px rgba(136, 153, 255, 0.5), inset -10px -10px 30px rgba(80, 100, 200, 0.2);
+          }
+        }
+      `}</style>
 
       {isInVR && (
         <div
@@ -408,19 +395,19 @@ export default function VERAVRPage() {
             top: '20px',
             left: '50%',
             transform: 'translateX(-50%)',
-            background: 'rgba(102, 255, 102, 0.95)',
-            color: '#000',
-            padding: '14px 30px',
+            background: 'rgba(136, 153, 255, 0.95)',
+            color: '#fff',
+            padding: '12px 25px',
             borderRadius: '25px',
-            fontFamily: 'monospace',
-            fontSize: '16px',
-            fontWeight: 'bold',
+            fontFamily: '"Segoe UI", sans-serif',
+            fontSize: '14px',
+            fontWeight: '500',
             zIndex: 1000,
-            letterSpacing: '2px',
-            boxShadow: '0 0 30px rgba(102, 255, 102, 0.8)'
+            letterSpacing: '0.5px',
+            boxShadow: '0 8px 25px rgba(136, 153, 255, 0.4)'
           }}
         >
-          ✓ IN VR MODE - I AM VERA
+          I am present with you.
         </div>
       )}
     </div>
