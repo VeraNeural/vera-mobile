@@ -1,15 +1,45 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+
+const ORB_VERTEX_SHADER = `
+  varying vec3 vNormal;
+  varying vec3 vPosition;
+
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    vPosition = position;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const ORB_FRAGMENT_SHADER = `
+  varying vec3 vNormal;
+  varying vec3 vPosition;
+  uniform float uTime;
+  uniform vec3 uColorA;
+  uniform vec3 uColorB;
+
+  void main() {
+    float fresnel = pow(1.0 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 3.0);
+    float pulse = sin(uTime * 0.6) * 0.5 + 0.5;
+    float gradient = clamp(vPosition.y * 0.3 + 0.5, 0.0, 1.0);
+    vec3 base = mix(uColorA, uColorB, pulse);
+    vec3 tint = mix(base, vec3(0.8, 0.7, 1.0), gradient);
+    vec3 color = tint + fresnel * vec3(0.6, 0.5, 1.1);
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
 
 interface VRSceneRefs {
   scene: any;
   orb: any;
   orbMaterial: any;
-  buttons: any[];
-  raycaster: any;
-  controller1: any;
-  controller2: any;
+  orbUniforms: any;
+  glow: any;
+  starfield: any;
+  haloParticles: any;
+  lightCone: any;
 }
 
 export default function VERAVRPage() {
@@ -20,9 +50,23 @@ export default function VERAVRPage() {
   const [isInVR, setIsInVR] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [vrStatus, setVrStatus] = useState('');
+  const [debugEnabled, setDebugEnabled] = useState(false);
+  const [voiceLog, setVoiceLog] = useState<string[]>([]);
   const isMountedRef = useRef(true);
   const voiceRef = useRef<SpeechSynthesis | null>(null);
   const hasSpokenRef = useRef(false);
+  const clockRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      setDebugEnabled(params.get('debug') === '1');
+    }
+  }, []);
+
+  const pushVoiceLog = useCallback((message: string) => {
+    setVoiceLog((prev) => [...prev.slice(-8), message]);
+  }, []);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -52,8 +96,11 @@ export default function VERAVRPage() {
 
         // ===== PREMIUM SCENE SETUP =====
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a0a1a); // Dark navy/black for dramatic effect
-        scene.fog = new THREE.Fog(0x0a0a1a, 15, 30);
+        scene.background = new THREE.Color(0x050713);
+        scene.fog = new THREE.FogExp2(0x050713, 0.045);
+
+        const clock = new THREE.Clock();
+        clockRef.current = clock;
 
         const camera = new THREE.PerspectiveCamera(
           90,
@@ -70,7 +117,7 @@ export default function VERAVRPage() {
           powerPreference: 'high-performance'
         });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio * 2, 2)); // Double pixel ratio for clarity
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio * 1.5, 2));
         renderer.xr.enabled = true;
         renderer.xr.setFoveation(0);
         renderer.shadowMap.enabled = true;
@@ -99,14 +146,17 @@ export default function VERAVRPage() {
         scene.add(softLight2);
 
         // ===== PREMIUM ORB (VERA PRESENCE) =====
-        const orbGeometry = new THREE.IcosahedronGeometry(2.5, 6); // LARGER: 2.5x size
-        const orbMaterial = new THREE.MeshPhongMaterial({
-          color: 0x8899ff,
-          emissive: 0x5577dd,
-          emissiveIntensity: 0.8,
-          shininess: 120,
-          wireframe: false,
-          side: THREE.FrontSide
+        const orbGeometry = new THREE.IcosahedronGeometry(2.5, 6);
+        const orbUniforms = {
+          uTime: { value: 0 },
+          uColorA: { value: new THREE.Color(0x5065ff) },
+          uColorB: { value: new THREE.Color(0xaa77ff) }
+        };
+        const orbMaterial = new THREE.ShaderMaterial({
+          uniforms: orbUniforms,
+          vertexShader: ORB_VERTEX_SHADER,
+          fragmentShader: ORB_FRAGMENT_SHADER,
+          transparent: false
         });
         const orb = new THREE.Mesh(orbGeometry, orbMaterial);
         orb.position.set(0, 0.5, -4.0); // CLOSER: -4.0 instead of -6.5
@@ -115,191 +165,127 @@ export default function VERAVRPage() {
         scene.add(orb);
 
         // Add subtle glow effect to orb
-        const glowGeometry = new THREE.IcosahedronGeometry(1.05, 6);
+        const glowGeometry = new THREE.IcosahedronGeometry(3.2, 4);
         const glowMaterial = new THREE.MeshBasicMaterial({
           color: 0x6688dd,
           transparent: true,
-          opacity: 0.2,
+          opacity: 0.18,
           side: THREE.BackSide
         });
         const glow = new THREE.Mesh(glowGeometry, glowMaterial);
         glow.position.copy(orb.position); // Copy orb's new position
         scene.add(glow);
 
-        // ===== PREMIUM TEXT RENDERING =====
-        const createHighQualityText = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = 4096;
-          canvas.height = 2048;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return null;
-
-          // High quality rendering
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-
-          // Background
-          ctx.fillStyle = '#f5f5ff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          // Title: "I am VERA"
-          ctx.fillStyle = '#2c3e50';
-          ctx.font = 'bold 360px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('I am VERA', canvas.width / 2, 500);
-
-          // Purple accent on VERA
-          ctx.fillStyle = '#b366cc';
-          ctx.textAlign = 'center';
-          ctx.font = 'bold 360px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-          
-          // Subtitle
-          ctx.fillStyle = '#5a6c7d';
-          ctx.font = '140px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('Your nervous system intelligence.', canvas.width / 2, 850);
-
-          // Body text
-          ctx.fillStyle = '#6b7d8e';
-          ctx.font = '130px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('I breathe with you. I regulate with you.', canvas.width / 2, 1250);
-          ctx.fillText('I keep you organized and sane.', canvas.width / 2, 1550);
-
-          return canvas;
-        };
-
-        const textCanvas = createHighQualityText();
-        let textMesh: any = null;
-        if (textCanvas) {
-          const texture = new THREE.CanvasTexture(textCanvas);
-          texture.magFilter = THREE.LinearFilter;
-          texture.minFilter = THREE.LinearMipmapLinearFilter;
-          texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-
-          const textMaterial = new THREE.MeshStandardMaterial({
-            map: texture,
-            emissive: new THREE.Color(0xffffff),
-            emissiveIntensity: 0.1,
-            transparent: true,
-            opacity: 1.0 // INSTANTLY VISIBLE - no fade-in
-          });
-
-          const textGeometry = new THREE.PlaneGeometry(12, 6); // LARGER plane
-          textMesh = new THREE.Mesh(textGeometry, textMaterial);
-          textMesh.position.set(0, 0, -3.5); // OVERLAID on orb for depth
-          textMesh.receiveShadow = true;
-          scene.add(textMesh);
+        // ===== ATMOSPHERE & PARTICLES =====
+        const starGeometry = new THREE.BufferGeometry();
+        const starCount = 1200;
+        const starPositions = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount; i++) {
+          const radius = 28 + Math.random() * 25;
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos(Math.random() * 2 - 1);
+          starPositions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+          starPositions[i * 3 + 1] = (Math.random() - 0.5) * 22;
+          starPositions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
         }
-
-        // ===== PREMIUM INTERACTIVE BUTTONS =====
-        const buttonGroup = new THREE.Group();
-        buttonGroup.position.set(0, -2.2, -6.5); // Much lower + match orb distance
-        scene.add(buttonGroup);
-
-        const buttonGeometry = new THREE.BoxGeometry(1.2, 0.3, 0.1);
-        const buttonMaterialActive = new THREE.MeshPhongMaterial({
+        starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        const starMaterial = new THREE.PointsMaterial({
           color: 0x8899ff,
-          shininess: 60,
-          emissive: 0x5577dd,
-          emissiveIntensity: 0.3
+          size: 0.08,
+          transparent: true,
+          opacity: 0.65,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
         });
-        const buttonMaterialHover = new THREE.MeshPhongMaterial({
-          color: 0xaa99ff,
-          shininess: 80,
-          emissive: 0x8877ff,
-          emissiveIntensity: 0.5
+        const starfield = new THREE.Points(starGeometry, starMaterial);
+        scene.add(starfield);
+
+        const haloGeometry = new THREE.BufferGeometry();
+        const haloCount = 240;
+        const haloPositions = new Float32Array(haloCount * 3);
+        for (let i = 0; i < haloCount; i++) {
+          const angle = (i / haloCount) * Math.PI * 2;
+          const radius = 2.8 + Math.random() * 0.4;
+          haloPositions[i * 3] = Math.cos(angle) * radius;
+          haloPositions[i * 3 + 1] = (Math.random() - 0.5) * 0.8;
+          haloPositions[i * 3 + 2] = Math.sin(angle) * radius;
+        }
+        haloGeometry.setAttribute('position', new THREE.BufferAttribute(haloPositions, 3));
+        const haloMaterial = new THREE.PointsMaterial({
+          color: 0xc7b4ff,
+          size: 0.05,
+          transparent: true,
+          opacity: 0.85,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
         });
+        const haloParticles = new THREE.Points(haloGeometry, haloMaterial);
+        haloParticles.position.copy(orb.position);
+        scene.add(haloParticles);
 
-        const enterButton = new THREE.Mesh(buttonGeometry, buttonMaterialActive.clone());
-        enterButton.position.set(-0.8, 0, 0); // Positioned in button group
-        enterButton.castShadow = true;
-        enterButton.receiveShadow = true;
-        enterButton.userData = { name: 'enter', hovered: false };
-        buttonGroup.add(enterButton);
-
-        const learnButton = new THREE.Mesh(buttonGeometry, buttonMaterialActive.clone());
-        learnButton.position.set(0.8, 0, 0); // Positioned in button group
-        learnButton.castShadow = true;
-        learnButton.receiveShadow = true;
-        learnButton.userData = { name: 'learn', hovered: false };
-        buttonGroup.add(learnButton);
-
-        const buttons = [enterButton, learnButton];
-        const raycaster = new THREE.Raycaster();
-        const controller1 = renderer.xr.getController(0);
-        const controller2 = renderer.xr.getController(1);
-        scene.add(controller1);
-        scene.add(controller2);
-
-        // Controller interaction
-        const onSelectStart = (controller: any) => {
-          raycaster.setFromXRController(controller);
-          const intersects = raycaster.intersectObjects(buttons);
-          if (intersects.length > 0) {
-            const button = intersects[0].object as any;
-            if (button.userData.name === 'enter') {
-              console.log('Enter VR action triggered');
-            }
-          }
-        };
-
-        controller1.addEventListener('selectstart', () => onSelectStart(controller1));
-        controller2.addEventListener('selectstart', () => onSelectStart(controller2));
+        const coneGeometry = new THREE.ConeGeometry(6, 12, 64, 1, true);
+        const coneMaterial = new THREE.MeshBasicMaterial({
+          color: 0x3c4aff,
+          transparent: true,
+          opacity: 0.12,
+          blending: THREE.AdditiveBlending,
+          side: THREE.BackSide,
+          depthWrite: false
+        });
+        const lightCone = new THREE.Mesh(coneGeometry, coneMaterial);
+        lightCone.position.set(0, -4, -7);
+        lightCone.rotation.x = Math.PI;
+        scene.add(lightCone);
 
         sceneRefsRef.current = {
           scene,
           orb,
           orbMaterial,
-          buttons,
-          raycaster,
-          controller1,
-          controller2
+          orbUniforms,
+          glow,
+          starfield,
+          haloParticles,
+          lightCone
         };
-
-        // ===== PREMIUM ANIMATION LOOP =====
-        let frameCount = 0;
 
         const animate = () => {
           if (!isMountedRef.current) return;
 
-          frameCount++;
+          const elapsed = clockRef.current ? clockRef.current.getElapsedTime() : 0;
+          const refs = sceneRefsRef.current;
 
-          // Text is now instantly visible - no fade animation needed
+          if (refs?.orb && refs?.orbUniforms) {
+            const scale = 1 + Math.sin(elapsed * 0.8) * 0.06;
+            refs.orb.scale.setScalar(scale);
+            refs.orb.rotation.x += 0.0002;
+            refs.orb.rotation.y += 0.00028;
+            refs.orbUniforms.uTime.value = elapsed;
+          }
 
-          // Smooth breathing animation
-          const breathPhase = Math.sin(frameCount * 0.004) * 0.04 + 1;
-          orb.scale.lerp(new THREE.Vector3(breathPhase, breathPhase, breathPhase), 0.1);
+          if (refs?.glow) {
+            const glowScale = 1.18 + Math.sin(elapsed * 0.6) * 0.05;
+            refs.glow.scale.setScalar(glowScale);
+          }
 
-          // Smooth glow pulse
-          orbMaterial.emissiveIntensity = 0.5 + Math.sin(frameCount * 0.008) * 0.3;
+          if (refs?.starfield) {
+            refs.starfield.rotation.y = elapsed * 0.01;
+            refs.starfield.rotation.x = Math.sin(elapsed * 0.005) * 0.02;
+          }
 
-          // Very subtle rotation
-          orb.rotation.x += 0.00008;
-          orb.rotation.y += 0.00012;
+          if (refs?.haloParticles) {
+            refs.haloParticles.rotation.y = elapsed * 0.35;
+          }
 
-          // Button interaction
-          buttons.forEach((btn) => {
-            const origin = camera.position;
-            const direction = btn.position.clone().sub(origin).normalize();
-            raycaster.ray.origin.copy(origin);
-            raycaster.ray.direction.copy(direction);
-
-            const distance = origin.distanceTo(btn.position);
-            const hovering = distance < 2.5;
-
-            if (hovering && !btn.userData.hovered) {
-              btn.userData.hovered = true;
-              btn.material = buttonMaterialHover;
-            } else if (!hovering && btn.userData.hovered) {
-              btn.userData.hovered = false;
-              btn.material = buttonMaterialActive;
-            }
-          });
+          if (refs?.lightCone) {
+            refs.lightCone.rotation.z = elapsed * 0.05;
+            const coneMaterialRef = Array.isArray(refs.lightCone.material)
+              ? (refs.lightCone.material[0] as any)
+              : (refs.lightCone.material as any);
+            coneMaterialRef.opacity = 0.12 + Math.sin(elapsed * 0.5) * 0.04;
+          }
 
           renderer.render(scene, camera);
         };
-
         renderer.setAnimationLoop(animate);
 
         // Handle window resize
@@ -362,6 +348,7 @@ export default function VERAVRPage() {
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
         console.log('✓ VERA voice START');
+        pushVoiceLog('✓ VERA voice START');
       }
 
       // Create utterance with proper settings
@@ -379,6 +366,9 @@ export default function VERAVRPage() {
       console.log('✓ Rate: 0.85');
       console.log('✓ Volume: 1.0 (FULL)');
       console.log('✓ Language: en-US');
+      pushVoiceLog('✓ Rate: 0.85');
+      pushVoiceLog('✓ Volume: 1.0 (FULL)');
+      pushVoiceLog('✓ Language: en-US');
 
       // Speak
       if (window.speechSynthesis) {
@@ -386,14 +376,17 @@ export default function VERAVRPage() {
         
         utterance.onend = () => {
           console.log('✓ VERA voice END');
+          pushVoiceLog('✓ VERA voice END');
         };
         
         utterance.onerror = (error) => {
           console.error('✗ Voice error:', error.error);
+          pushVoiceLog(`✗ Voice error: ${error.error}`);
         };
       }
     } catch (err) {
       console.error('✗ Voice exception:', err);
+      pushVoiceLog('✗ Voice exception');
     }
   };
 
@@ -458,191 +451,63 @@ export default function VERAVRPage() {
     >
       {!isInVR && (
         <>
-          {/* Full-screen 3D background (rendered in container) */}
-          
-          {/* Bottom overlay UI - minimal and clean */}
           <div
             style={{
               position: 'fixed',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              background: 'linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.7) 40%, rgba(0, 0, 0, 0.85) 100%)',
-              padding: '40px 30px 50px',
-              textAlign: 'center',
-              zIndex: 100,
-              fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
-              pointerEvents: 'auto'
+              inset: 0,
+              pointerEvents: 'none',
+              background:
+                'radial-gradient(circle at 50% 18%, rgba(120, 130, 255, 0.32) 0%, rgba(10, 10, 20, 0) 45%), radial-gradient(circle at 80% 80%, rgba(170, 120, 255, 0.28) 0%, rgba(5, 7, 19, 0) 60%)'
             }}
-          >
-            <div
-              style={{
-                maxWidth: '800px',
-                margin: '0 auto'
-              }}
-            >
-              {/* Messaging */}
-              <div
-                style={{
-                  fontSize: '16px',
-                  color: '#a8c4ff',
-                  marginBottom: '8px',
-                  fontWeight: '400',
-                  letterSpacing: '0.5px'
-                }}
-              >
-                Real-time biometric feedback
+          />
+
+          <div className="vera-overlay-shell">
+            <div className="vera-glass">
+              <div className="vera-chip">LIVE NERVOUS SYSTEM FEED</div>
+              <h1 className="vera-hero">VERA: Nervous System Intelligence</h1>
+              <p className="vera-sub">
+                Co-regulate with an adaptive orb that mirrors vagal tone, synchronises breath, and anchors cognition in immersive VR.
+              </p>
+
+              <div className="vera-metrics">
+                <div className="vera-metric">
+                  <span>Vagal Coherence</span>
+                  <strong>86%</strong>
+                </div>
+                <div className="vera-metric">
+                  <span>Respiratory Sync</span>
+                  <strong>12.4 Hz</strong>
+                </div>
+                <div className="vera-metric">
+                  <span>Emotive Stability</span>
+                  <strong>+14 pts</strong>
+                </div>
               </div>
 
-              <div
-                style={{
-                  fontSize: '13px',
-                  color: '#8899aa',
-                  marginBottom: '25px',
-                  fontWeight: '400',
-                  letterSpacing: '0.5px'
-                }}
-              >
-                Evidence-based regulation • AI-powered insights • VR immersion
-              </div>
-
-              {/* Stats line */}
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: '#7a9aaa',
-                  marginBottom: '30px',
-                  letterSpacing: '0.5px'
-                }}
-              >
-                <span style={{ color: '#66cc88', marginRight: '20px' }}>● Vagal Tone: 84%</span>
-                <span style={{ color: '#88aaff' }}>● Coherence: 86%</span>
-              </div>
-
-              {/* Action Button */}
               {isVRSupported ? (
-                <>
-                  <button
-                    onClick={enterVR}
-                    className="vera-button"
-                    style={{
-                      padding: '18px 50px',
-                      fontSize: '18px',
-                      fontWeight: '700',
-                      background: 'linear-gradient(135deg, #aa66ff 0%, #dd77ff 100%)',
-                      border: 'none',
-                      borderRadius: '50px',
-                      color: '#fff',
-                      cursor: 'pointer',
-                      boxShadow: '0 10px 30px rgba(170, 102, 255, 0.5)',
-                      transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                      letterSpacing: '1.5px',
-                      textTransform: 'uppercase',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      width: '100%',
-                      maxWidth: '500px'
-                    }}
-                    onMouseOver={(e) => {
-                      const btn = e.currentTarget;
-                      btn.style.boxShadow = '0 15px 40px rgba(170, 102, 255, 0.7)';
-                      btn.style.transform = 'scale(1.02)';
-                    }}
-                    onMouseOut={(e) => {
-                      const btn = e.currentTarget;
-                      btn.style.boxShadow = '0 10px 30px rgba(170, 102, 255, 0.5)';
-                      btn.style.transform = 'scale(1)';
-                    }}
-                  >
-                    → Enter VERA VR
+                <div className="vera-actions">
+                  <button onClick={enterVR} className="vera-primary">
+                    <span>→ Enter VERA VR</span>
+                    <small>Immersive session • Meta Quest 3</small>
                   </button>
-
-                  <button
-                    onClick={() => playVeraVoice()}
-                    className="vera-button"
-                    style={{
-                      padding: '12px 30px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      background: 'rgba(170, 102, 255, 0.1)',
-                      border: '2px solid #aa66ff',
-                      borderRadius: '50px',
-                      color: '#dd77ff',
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 15px rgba(170, 102, 255, 0.15)',
-                      transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                      letterSpacing: '0.5px',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      marginTop: '12px'
-                    }}
-                    onMouseOver={(e) => {
-                      const btn = e.currentTarget;
-                      btn.style.background = 'rgba(170, 102, 255, 0.2)';
-                      btn.style.boxShadow = '0 6px 20px rgba(170, 102, 255, 0.25)';
-                    }}
-                    onMouseOut={(e) => {
-                      const btn = e.currentTarget;
-                      btn.style.background = 'rgba(170, 102, 255, 0.1)';
-                      btn.style.boxShadow = '0 4px 15px rgba(170, 102, 255, 0.15)';
-                    }}
-                  >
-                    🔊 Hear VERA Speak
+                  <button onClick={() => playVeraVoice()} className="vera-secondary">
+                    <span>🔊 Hear VERA Speak</span>
+                    <small>1:12 guided regulation</small>
                   </button>
-                </>
-              ) : (
-                <div
-                  style={{
-                    color: '#ff9999',
-                    fontSize: '13px',
-                    padding: '12px 20px',
-                    background: 'rgba(200, 100, 100, 0.15)',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(200, 100, 100, 0.3)',
-                    letterSpacing: '0.3px',
-                    display: 'inline-block'
-                  }}
-                >
-                  ✗ Open on Meta Quest 3
                 </div>
+              ) : (
+                <div className="vera-unsupported">✗ View on a Meta Quest 3 headset to enter immersive mode.</div>
               )}
 
-              {/* Bottom hint */}
-              <div
-                style={{
-                  marginTop: '30px',
-                  fontSize: '11px',
-                  color: '#6a7a8a',
-                  fontWeight: '400',
-                  letterSpacing: '0.5px'
-                }}
-              >
-                Hover the orb to feel the connection
+              <div className="vera-footer">
+                <div>Ambient co-regulation active • Neuro-resonance in sync</div>
+                <div>Hover the orb to feel responsive modulation</div>
               </div>
 
-              {vrStatus && (
-                <div
-                  style={{
-                    marginTop: '12px',
-                    fontSize: '11px',
-                    color: '#88aacc',
-                    fontWeight: '400'
-                  }}
-                >
-                  {vrStatus}
-                </div>
-              )}
-
-              {errorMsg && (
-                <div
-                  style={{
-                    marginTop: '12px',
-                    fontSize: '11px',
-                    color: '#ff9999',
-                    fontWeight: '400'
-                  }}
-                >
-                  {errorMsg}
+              {(vrStatus || errorMsg) && (
+                <div className="vera-status">
+                  {vrStatus && <span>{vrStatus}</span>}
+                  {errorMsg && <span>{errorMsg}</span>}
                 </div>
               )}
             </div>
@@ -650,33 +515,20 @@ export default function VERAVRPage() {
         </>
       )}
 
+      {debugEnabled && voiceLog.length > 0 && !isInVR && (
+        <div className="vera-debug">
+          <strong>Voice Diagnostics</strong>
+          {voiceLog.map((entry, idx) => (
+            <span key={`${entry}-${idx}`}>{entry}</span>
+          ))}
+        </div>
+      )}
+
       <style>{`
-        @keyframes pulse {
-          0% {
-            box-shadow: 0 0 60px rgba(136, 153, 255, 0.5), inset -10px -10px 30px rgba(80, 100, 200, 0.2);
-          }
-          50% {
-            box-shadow: 0 0 100px rgba(136, 153, 255, 0.8), inset -10px -10px 40px rgba(80, 100, 200, 0.4);
-            transform: scale(1.02);
-          }
-          100% {
-            box-shadow: 0 0 60px rgba(136, 153, 255, 0.5), inset -10px -10px 30px rgba(80, 100, 200, 0.2);
-          }
-        }
-
-        @keyframes shimmer {
-          0% {
-            background-position: -1000px 0;
-          }
-          100% {
-            background-position: 1000px 0;
-          }
-        }
-
-        @keyframes fadeIn {
+        @keyframes fadeInUp {
           from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(22px);
           }
           to {
             opacity: 1;
@@ -684,12 +536,233 @@ export default function VERAVRPage() {
           }
         }
 
-        .vera-button {
-          transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        .vera-overlay-shell {
+          position: fixed;
+          bottom: 42px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: min(92vw, 960px);
+          padding: 0 24px;
+          z-index: 140;
+          pointer-events: none;
         }
 
-        .vera-button:active {
-          transform: scale(0.97);
+        .vera-glass {
+          pointer-events: auto;
+          backdrop-filter: blur(28px);
+          background: rgba(14, 18, 36, 0.68);
+          border: 1px solid rgba(120, 140, 255, 0.25);
+          border-radius: 28px;
+          padding: 38px 44px;
+          box-shadow: 0 38px 90px rgba(20, 20, 80, 0.45);
+          animation: fadeInUp 0.9s ease 0.1s forwards;
+          opacity: 0;
+          color: #f6f8ff;
+          font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .vera-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 12px;
+          letter-spacing: 0.4px;
+          text-transform: uppercase;
+          color: #8ba3ff;
+          background: rgba(90, 110, 220, 0.2);
+          border: 1px solid rgba(120, 140, 255, 0.3);
+          border-radius: 999px;
+          padding: 6px 14px;
+        }
+
+        .vera-hero {
+          font-size: clamp(34px, 4vw, 56px);
+          margin: 22px 0 16px;
+          line-height: 1.05;
+          letter-spacing: 0.6px;
+          font-weight: 700;
+        }
+
+        .vera-sub {
+          font-size: clamp(16px, 1.4vw, 20px);
+          color: #a9b9ff;
+          line-height: 1.6;
+          margin-bottom: 32px;
+          max-width: 640px;
+        }
+
+        .vera-metrics {
+          display: flex;
+          gap: 18px;
+          justify-content: space-between;
+          margin-bottom: 32px;
+          flex-wrap: wrap;
+        }
+
+        .vera-metric {
+          flex: 1 1 160px;
+          background: rgba(120, 140, 255, 0.12);
+          border: 1px solid rgba(120, 140, 255, 0.24);
+          border-radius: 18px;
+          padding: 14px 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .vera-metric span {
+          font-size: 11px;
+          letter-spacing: 0.56px;
+          text-transform: uppercase;
+          color: #9fb0ff;
+        }
+
+        .vera-metric strong {
+          font-size: 22px;
+          letter-spacing: 0.8px;
+          color: #ffffff;
+        }
+
+        .vera-actions {
+          display: flex;
+          gap: 18px;
+          flex-wrap: wrap;
+          margin-bottom: 32px;
+        }
+
+        .vera-primary,
+        .vera-secondary {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+          border-radius: 20px;
+          border: none;
+          cursor: pointer;
+          transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease;
+          padding: 18px 26px;
+          min-width: 220px;
+          font-family: inherit;
+        }
+
+        .vera-primary {
+          background: linear-gradient(135deg, #a66bff 0%, #d179ff 100%);
+          color: #ffffff;
+          box-shadow: 0 22px 44px rgba(166, 107, 255, 0.38);
+        }
+
+        .vera-primary small {
+          font-size: 12px;
+          letter-spacing: 0.4px;
+          opacity: 0.8;
+          text-transform: uppercase;
+        }
+
+        .vera-primary:hover {
+          transform: translateY(-4px) scale(1.01);
+          box-shadow: 0 32px 68px rgba(166, 107, 255, 0.55);
+        }
+
+        .vera-secondary {
+          background: rgba(166, 107, 255, 0.12);
+          color: #d89dff;
+          border: 1px solid rgba(166, 107, 255, 0.35);
+          box-shadow: 0 16px 36px rgba(166, 107, 255, 0.18);
+        }
+
+        .vera-secondary small {
+          font-size: 12px;
+          letter-spacing: 0.4px;
+          opacity: 0.75;
+          text-transform: uppercase;
+        }
+
+        .vera-secondary:hover {
+          transform: translateY(-3px) scale(1.01);
+          box-shadow: 0 26px 54px rgba(166, 107, 255, 0.28);
+        }
+
+        .vera-unsupported {
+          background: rgba(255, 120, 120, 0.15);
+          border: 1px solid rgba(255, 120, 120, 0.35);
+          color: #ffaaaa;
+          border-radius: 16px;
+          padding: 16px 22px;
+          font-size: 13px;
+          letter-spacing: 0.4px;
+          text-align: left;
+        }
+
+        .vera-footer {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 18px;
+          font-size: 12px;
+          letter-spacing: 0.48px;
+          color: #7f91c8;
+        }
+
+        .vera-status {
+          margin-top: 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          font-size: 12px;
+          letter-spacing: 0.4px;
+          color: #8fb3ff;
+        }
+
+        .vera-debug {
+          position: fixed;
+          top: 24px;
+          right: 24px;
+          background: rgba(10, 14, 30, 0.78);
+          border: 1px solid rgba(146, 160, 255, 0.35);
+          border-radius: 18px;
+          padding: 14px 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          color: #cbd4ff;
+          font-size: 12px;
+          max-width: 260px;
+          z-index: 160;
+          font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .vera-debug strong {
+          font-size: 11px;
+          letter-spacing: 0.4px;
+          text-transform: uppercase;
+          color: #9fb5ff;
+        }
+
+        .vera-debug span {
+          line-height: 1.4;
+        }
+
+        @media (max-width: 768px) {
+          .vera-glass {
+            padding: 28px;
+          }
+
+          .vera-metrics {
+            flex-direction: column;
+          }
+
+          .vera-actions {
+            flex-direction: column;
+          }
+
+          .vera-footer {
+            flex-direction: column;
+          }
+
+          .vera-debug {
+            top: auto;
+            bottom: 24px;
+            right: 16px;
+          }
         }
       `}</style>
 
