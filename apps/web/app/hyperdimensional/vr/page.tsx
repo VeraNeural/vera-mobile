@@ -38,7 +38,7 @@ interface VRSceneRefs {
   orbUniforms: any;
   glow: any;
   starfield: any;
-  haloParticles: any;
+  neuronGroup: any;
   lightCone: any;
 }
 
@@ -159,7 +159,7 @@ export default function VERAVRPage() {
           transparent: false
         });
         const orb = new THREE.Mesh(orbGeometry, orbMaterial);
-        orb.position.set(0, 0.5, -4.0); // CLOSER: -4.0 instead of -6.5
+        orb.position.set(0, -0.4, -5.8);
         orb.castShadow = true;
         orb.receiveShadow = true;
         scene.add(orb);
@@ -173,7 +173,7 @@ export default function VERAVRPage() {
           side: THREE.BackSide
         });
         const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-        glow.position.copy(orb.position); // Copy orb's new position
+        glow.position.copy(orb.position);
         scene.add(glow);
 
         // ===== ATMOSPHERE & PARTICLES =====
@@ -200,28 +200,59 @@ export default function VERAVRPage() {
         const starfield = new THREE.Points(starGeometry, starMaterial);
         scene.add(starfield);
 
-        const haloGeometry = new THREE.BufferGeometry();
-        const haloCount = 240;
-        const haloPositions = new Float32Array(haloCount * 3);
-        for (let i = 0; i < haloCount; i++) {
-          const angle = (i / haloCount) * Math.PI * 2;
-          const radius = 2.8 + Math.random() * 0.4;
-          haloPositions[i * 3] = Math.cos(angle) * radius;
-          haloPositions[i * 3 + 1] = (Math.random() - 0.5) * 0.8;
-          haloPositions[i * 3 + 2] = Math.sin(angle) * radius;
+        const neuronGroup = new THREE.Group();
+        const neuronCount = 34;
+        for (let i = 0; i < neuronCount; i++) {
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos(Math.random() * 2 - 1);
+          const radius = 2.9 + Math.random() * 0.5;
+          const basePosition = new THREE.Vector3(
+            radius * Math.sin(phi) * Math.cos(theta),
+            (Math.random() - 0.5) * 1.2,
+            radius * Math.sin(phi) * Math.sin(theta)
+          );
+
+          const neuron = new THREE.Group();
+          neuron.position.copy(basePosition);
+          neuron.userData = {
+            base: basePosition.clone(),
+            waveOffset: Math.random() * Math.PI * 2
+          };
+
+          const somaGeometry = new THREE.IcosahedronGeometry(0.14, 2);
+          const somaMaterial = new THREE.MeshBasicMaterial({
+            color: 0xd8c7ff,
+            transparent: true,
+            opacity: 0.9
+          });
+          const soma = new THREE.Mesh(somaGeometry, somaMaterial);
+          neuron.add(soma);
+
+          const branchGeometry = new THREE.BufferGeometry();
+          const branchTarget = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.9,
+            0.4 + Math.random() * 0.6,
+            (Math.random() - 0.5) * 0.9
+          );
+          const branchPositions = new Float32Array([
+            0, 0, 0,
+            branchTarget.x,
+            branchTarget.y,
+            branchTarget.z
+          ]);
+          branchGeometry.setAttribute('position', new THREE.BufferAttribute(branchPositions, 3));
+          const branchMaterial = new THREE.LineBasicMaterial({
+            color: 0xbfa7ff,
+            transparent: true,
+            opacity: 0.55
+          });
+          const branch = new THREE.Line(branchGeometry, branchMaterial);
+          neuron.add(branch);
+
+          neuronGroup.add(neuron);
         }
-        haloGeometry.setAttribute('position', new THREE.BufferAttribute(haloPositions, 3));
-        const haloMaterial = new THREE.PointsMaterial({
-          color: 0xc7b4ff,
-          size: 0.05,
-          transparent: true,
-          opacity: 0.85,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false
-        });
-        const haloParticles = new THREE.Points(haloGeometry, haloMaterial);
-        haloParticles.position.copy(orb.position);
-        scene.add(haloParticles);
+        neuronGroup.position.copy(orb.position);
+        scene.add(neuronGroup);
 
         const coneGeometry = new THREE.ConeGeometry(6, 12, 64, 1, true);
         const coneMaterial = new THREE.MeshBasicMaterial({
@@ -244,7 +275,7 @@ export default function VERAVRPage() {
           orbUniforms,
           glow,
           starfield,
-          haloParticles,
+          neuronGroup,
           lightCone
         };
 
@@ -255,25 +286,55 @@ export default function VERAVRPage() {
           const refs = sceneRefsRef.current;
 
           if (refs?.orb && refs?.orbUniforms) {
-            const scale = 1 + Math.sin(elapsed * 0.8) * 0.06;
+            const riseProgress = Math.min(elapsed / 6, 1);
+            const eased = 1 - Math.cos(riseProgress * Math.PI * 0.5);
+            const targetY = THREE.MathUtils.lerp(-0.4, 1.05, eased);
+            refs.orb.position.y = THREE.MathUtils.lerp(refs.orb.position.y, targetY, 0.04);
+
+            const scale = 1 + Math.sin(elapsed * 0.6) * 0.04;
             refs.orb.scale.setScalar(scale);
-            refs.orb.rotation.x += 0.0002;
-            refs.orb.rotation.y += 0.00028;
+            refs.orb.rotation.x += 0.00008;
+            refs.orb.rotation.y += 0.00012;
             refs.orbUniforms.uTime.value = elapsed;
           }
 
           if (refs?.glow) {
-            const glowScale = 1.18 + Math.sin(elapsed * 0.6) * 0.05;
+            const glowScale = 1.15 + Math.sin(elapsed * 0.5) * 0.04;
             refs.glow.scale.setScalar(glowScale);
+            if (refs?.orb) {
+              refs.glow.position.copy(refs.orb.position);
+            }
           }
 
           if (refs?.starfield) {
-            refs.starfield.rotation.y = elapsed * 0.01;
-            refs.starfield.rotation.x = Math.sin(elapsed * 0.005) * 0.02;
+            refs.starfield.rotation.y = elapsed * 0.0025;
+            refs.starfield.rotation.x = Math.sin(elapsed * 0.002) * 0.01;
           }
 
-          if (refs?.haloParticles) {
-            refs.haloParticles.rotation.y = elapsed * 0.35;
+          if (refs?.neuronGroup) {
+            refs.neuronGroup.rotation.y = elapsed * 0.04;
+            refs.neuronGroup.position.copy(refs.orb.position);
+            refs.neuronGroup.children.forEach((neuron: any, index: number) => {
+              if (!neuron.userData?.base) return;
+              const base = neuron.userData.base;
+              const offset = neuron.userData.waveOffset || 0;
+              const wave = 1 + Math.sin(elapsed * 0.55 + offset) * 0.05;
+              neuron.position.set(
+                base.x * wave,
+                base.y * (0.9 + Math.sin(elapsed * 1.1 + offset) * 0.05),
+                base.z * wave
+              );
+
+              neuron.children.forEach((child: any) => {
+                if (child.isMesh) {
+                  child.rotation.y += 0.004 + index * 0.00015;
+                  child.rotation.x += 0.003;
+                } else if (child.isLine) {
+                  const scaleFactor = 1 + Math.sin(elapsed * 0.45 + offset) * 0.09;
+                  child.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                }
+              });
+            });
           }
 
           if (refs?.lightCone) {
