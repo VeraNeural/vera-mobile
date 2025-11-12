@@ -3,133 +3,155 @@
 import React, { useRef, useEffect, useState } from 'react';
 
 export default function VERAVRPage() {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isVRSupported, setIsVRSupported] = useState(false);
   const [isInVR, setIsInVR] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const sessionRef = useRef<any>(null);
+  const rendererRef = useRef<any>(null);
 
   useEffect(() => {
-    // Check VR support more thoroughly
+    // Check VR support
     console.log('Navigator XR available:', typeof navigator !== 'undefined' && 'xr' in navigator);
     
     if (typeof navigator !== 'undefined' && 'xr' in navigator) {
+      // Try immersive-vr
       (navigator as any).xr.isSessionSupported('immersive-vr')
         .then((supported: boolean) => {
+          console.log('✅ immersive-vr supported:', supported);
           setIsVRSupported(supported);
-          console.log('✅ VR supported:', supported);
         })
         .catch((err: any) => {
           console.error('❌ VR check error:', err);
-          setIsVRSupported(false);
         });
 
-      // Also check for other modes
+      // Also check inline
       (navigator as any).xr.isSessionSupported('inline')
         .then((supported: boolean) => {
-          console.log('Inline mode supported:', supported);
+          console.log('✅ Inline mode supported:', supported);
         });
     } else {
-      console.log('❌ WebXR not available in this browser');
-      setErrorMsg('WebXR not available. Make sure you\'re using Quest 3 browser.');
+      console.log('❌ WebXR not available');
+      setErrorMsg('WebXR not available');
     }
 
-    // Dynamic import Three.js to avoid SSR issues
-    const setupScene = async () => {
-      try {
-        const THREE = await import('three');
-
-        const container = containerRef.current;
-        if (!container) return;
-
-        // Scene setup
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
-
-        const camera = new THREE.PerspectiveCamera(
-          75,
-          window.innerWidth / window.innerHeight,
-          0.1,
-          1000
-        );
-        camera.position.z = 5;
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.xr.enabled = true;
-        renderer.xr.setFoveation(0);
-        container.appendChild(renderer.domElement);
-
-        // Create a simple cube
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
-        const material = new THREE.MeshPhongMaterial({ color: 0x6666ff });
-        const cube = new THREE.Mesh(geometry, material);
-        cube.position.z = -3;
-        scene.add(cube);
-
-        // Add a sphere
-        const sphereGeometry = new THREE.SphereGeometry(0.5, 32, 32);
-        const sphereMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffff });
-        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-        sphere.position.set(2, 0, -3);
-        scene.add(sphere);
-
-        // Add lighting
-        const light = new THREE.PointLight(0xffffff, 1);
-        light.position.set(5, 5, 5);
-        scene.add(light);
-
-        const ambientLight = new THREE.AmbientLight(0x404040);
-        scene.add(ambientLight);
-
-        // Animation loop
-        const animate = () => {
-          renderer.render(scene, camera);
-
-          // Rotate cube
-          cube.rotation.x += 0.01;
-          cube.rotation.y += 0.01;
-
-          // Rotate sphere
-          sphere.rotation.y += 0.02;
-        };
-
-        renderer.setAnimationLoop(animate);
-
-        // Handle window resize
-        const handleResize = () => {
-          camera.aspect = window.innerWidth / window.innerHeight;
-          camera.updateProjectionMatrix();
-          renderer.setSize(window.innerWidth, window.innerHeight);
-        };
-
-        window.addEventListener('resize', handleResize);
-
-        return () => {
-          window.removeEventListener('resize', handleResize);
-          container.removeChild(renderer.domElement);
-        };
-      } catch (error) {
-        console.error('Scene setup error:', error);
-        setErrorMsg('Failed to setup 3D scene: ' + String(error));
-      }
-    };
-
+    // Setup Three.js scene
     setupScene();
   }, []);
 
+  const setupScene = async () => {
+    try {
+      const THREE = await import('three');
+      const canvas = canvasRef.current;
+      
+      if (!canvas) {
+        console.error('Canvas ref not found');
+        return;
+      }
+
+      // Scene setup
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x000000);
+
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.z = 5;
+
+      const renderer = new THREE.WebGLRenderer({ 
+        canvas,
+        antialias: true, 
+        alpha: true 
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      renderer.xr.setFoveation(0);
+      rendererRef.current = renderer;
+
+      // Create a simple cube
+      const geometry = new THREE.BoxGeometry(1, 1, 1);
+      const material = new THREE.MeshPhongMaterial({ color: 0x6666ff });
+      const cube = new THREE.Mesh(geometry, material);
+      cube.position.z = -3;
+      scene.add(cube);
+
+      // Add a sphere
+      const sphereGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+      const sphereMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffff });
+      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+      sphere.position.set(2, 0, -3);
+      scene.add(sphere);
+
+      // Add lighting
+      const light = new THREE.PointLight(0xffffff, 1);
+      light.position.set(5, 5, 5);
+      scene.add(light);
+
+      const ambientLight = new THREE.AmbientLight(0x404040);
+      scene.add(ambientLight);
+
+      // Animation loop
+      const animate = () => {
+        renderer.render(scene, camera);
+
+        // Rotate cube
+        cube.rotation.x += 0.01;
+        cube.rotation.y += 0.01;
+
+        // Rotate sphere
+        sphere.rotation.y += 0.02;
+      };
+
+      renderer.setAnimationLoop(animate);
+
+      // Handle window resize
+      const handleResize = () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      };
+
+      window.addEventListener('resize', handleResize);
+
+      console.log('✅ Three.js scene initialized');
+
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+    } catch (error) {
+      console.error('Scene setup error:', error);
+      setErrorMsg('Scene setup failed: ' + String(error));
+    }
+  };
+
   const enterVR = async () => {
     try {
-      console.log('Requesting VR session...');
+      console.log('Requesting immersive-vr session...');
+      
+      if (!('xr' in navigator)) {
+        throw new Error('WebXR not available');
+      }
+
       const session = await (navigator as any).xr.requestSession('immersive-vr', {
         requiredFeatures: ['local-floor'],
         optionalFeatures: ['bounded-floor', 'hand-tracking']
       });
+
+      sessionRef.current = session;
+      
+      if (rendererRef.current) {
+        await rendererRef.current.xr.setSession(session);
+      }
 
       console.log('✅ VR session started');
       setIsInVR(true);
 
       session.addEventListener('end', () => {
         console.log('VR session ended');
+        sessionRef.current = null;
         setIsInVR(false);
       });
     } catch (error: any) {
@@ -138,9 +160,22 @@ export default function VERAVRPage() {
     }
   };
 
+  const exitVR = async () => {
+    try {
+      if (sessionRef.current) {
+        console.log('Ending VR session...');
+        await sessionRef.current.end();
+        sessionRef.current = null;
+        setIsInVR(false);
+      }
+    } catch (error: any) {
+      console.error('Exit error:', error);
+      setErrorMsg('Exit Error: ' + error.message);
+    }
+  };
+
   return (
     <div
-      ref={containerRef}
       style={{
         width: '100vw',
         height: '100vh',
@@ -151,8 +186,17 @@ export default function VERAVRPage() {
         position: 'relative'
       }}
     >
-      {/* Main VR renderer */}
-      {/* 3D content will be rendered here by Three.js */}
+      <canvas
+        ref={canvasRef}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: '100%',
+          position: 'absolute',
+          top: 0,
+          left: 0
+        }}
+      />
 
       {!isInVR && (
         <div
@@ -209,6 +253,8 @@ export default function VERAVRPage() {
             Browser: {typeof navigator !== 'undefined' ? navigator.userAgent.substring(0, 50) : 'Unknown'}
             <br />
             WebXR: {'xr' in (navigator as any) ? 'Available' : 'Not Available'}
+            <br />
+            VR Support: {isVRSupported ? '✅ Yes' : '❌ No'}
           </div>
 
           {isVRSupported ? (
@@ -244,20 +290,39 @@ export default function VERAVRPage() {
               </div>
             </>
           ) : (
-            <div
-              style={{
-                color: '#f66',
-                fontSize: '12px',
-                fontFamily: 'monospace',
-                padding: '15px',
-                background: 'rgba(255, 0, 0, 0.1)',
-                borderRadius: '8px'
-              }}
-            >
-              ❌ VR Not Supported
-              <br />
-              Open on Quest 3 Browser
-            </div>
+            <>
+              <div
+                style={{
+                  color: '#f66',
+                  fontSize: '12px',
+                  fontFamily: 'monospace',
+                  padding: '15px',
+                  background: 'rgba(255, 0, 0, 0.1)',
+                  borderRadius: '8px',
+                  marginBottom: '15px'
+                }}
+              >
+                ❌ immersive-vr Not Supported
+                <br />
+                Try updating Quest browser or check permissions
+              </div>
+              
+              <button
+                onClick={() => setErrorMsg('')}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '14px',
+                  background: '#666',
+                  border: '1px solid #888',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontFamily: 'monospace'
+                }}
+              >
+                Try Anyway
+              </button>
+            </>
           )}
 
           {errorMsg && (
@@ -269,10 +334,12 @@ export default function VERAVRPage() {
                 marginTop: '15px',
                 padding: '10px',
                 background: 'rgba(255, 0, 0, 0.15)',
-                borderRadius: '6px'
+                borderRadius: '6px',
+                maxHeight: '80px',
+                overflow: 'auto'
               }}
             >
-              {errorMsg}
+              Error: {errorMsg}
             </div>
           )}
         </div>
@@ -292,10 +359,29 @@ export default function VERAVRPage() {
             fontFamily: 'monospace',
             fontSize: '14px',
             fontWeight: 'bold',
-            zIndex: 1000
+            zIndex: 1000,
+            display: 'flex',
+            gap: '15px',
+            alignItems: 'center'
           }}
         >
-          ✅ IN VR MODE
+          <span>✅ IN VR MODE</span>
+          <button
+            onClick={exitVR}
+            style={{
+              padding: '8px 16px',
+              fontSize: '12px',
+              background: '#ff6666',
+              border: '1px solid #ff8888',
+              borderRadius: '8px',
+              color: '#fff',
+              cursor: 'pointer',
+              fontFamily: 'monospace',
+              fontWeight: 'bold'
+            }}
+          >
+            EXIT
+          </button>
         </div>
       )}
     </div>
