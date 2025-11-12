@@ -9,3 +9,8 @@ node_modules/
 coverage/
 .idea/
 .vscode/
+
+# Large model files
+*.safetensors
+*.bin
+apps/vera-model-service/vera_trained_model/

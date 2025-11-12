@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import React from 'react';
 
 const VERAQuestVR = dynamic(
-  () => import('../VERAQuestVR' as any),
+  () => import('../VERAQuestVRNative' as any),
   { 
     ssr: false,
     loading: () => (
