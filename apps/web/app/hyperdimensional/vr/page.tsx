@@ -70,7 +70,7 @@ export default function VERAVRPage() {
           powerPreference: 'high-performance'
         });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio * 2, 2)); // Double pixel ratio for clarity
         renderer.xr.enabled = true;
         renderer.xr.setFoveation(0);
         renderer.shadowMap.enabled = true;
@@ -109,7 +109,7 @@ export default function VERAVRPage() {
           side: THREE.FrontSide
         });
         const orb = new THREE.Mesh(orbGeometry, orbMaterial);
-        orb.position.set(0, 1.5, -3.5);
+        orb.position.set(0, 1.2, -6.5); // Much further away to prevent text cutoff
         orb.castShadow = true;
         orb.receiveShadow = true;
         scene.add(orb);
@@ -123,7 +123,7 @@ export default function VERAVRPage() {
           side: THREE.BackSide
         });
         const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-        glow.position.copy(orb.position);
+        glow.position.copy(orb.position); // Copy orb's new position
         scene.add(glow);
 
         // ===== PREMIUM TEXT RENDERING =====
@@ -170,6 +170,7 @@ export default function VERAVRPage() {
         };
 
         const textCanvas = createHighQualityText();
+        let textMesh: any = null;
         if (textCanvas) {
           const texture = new THREE.CanvasTexture(textCanvas);
           texture.magFilter = THREE.LinearFilter;
@@ -179,22 +180,24 @@ export default function VERAVRPage() {
           const textMaterial = new THREE.MeshStandardMaterial({
             map: texture,
             emissive: new THREE.Color(0xffffff),
-            emissiveIntensity: 0.1
+            emissiveIntensity: 0.1,
+            transparent: true,
+            opacity: 0 // Start invisible for fade-in
           });
 
-          const textGeometry = new THREE.PlaneGeometry(8, 4);
-          const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-          textMesh.position.set(0, -0.3, -3.5);
+          const textGeometry = new THREE.PlaneGeometry(10, 5);
+          textMesh = new THREE.Mesh(textGeometry, textMaterial);
+          textMesh.position.set(0, 0, -6.5); // Match orb distance and center vertically
           textMesh.receiveShadow = true;
           scene.add(textMesh);
         }
 
         // ===== PREMIUM INTERACTIVE BUTTONS =====
         const buttonGroup = new THREE.Group();
-        buttonGroup.position.z = -3.5;
+        buttonGroup.position.set(0, -2.2, -6.5); // Much lower + match orb distance
         scene.add(buttonGroup);
 
-        const buttonGeometry = new THREE.BoxGeometry(1.0, 0.25, 0.08);
+        const buttonGeometry = new THREE.BoxGeometry(1.2, 0.3, 0.1);
         const buttonMaterialActive = new THREE.MeshPhongMaterial({
           color: 0x8899ff,
           shininess: 60,
@@ -209,14 +212,14 @@ export default function VERAVRPage() {
         });
 
         const enterButton = new THREE.Mesh(buttonGeometry, buttonMaterialActive.clone());
-        enterButton.position.set(-0.75, -1.4, 0);
+        enterButton.position.set(-0.8, 0, 0); // Positioned in button group
         enterButton.castShadow = true;
         enterButton.receiveShadow = true;
         enterButton.userData = { name: 'enter', hovered: false };
         buttonGroup.add(enterButton);
 
         const learnButton = new THREE.Mesh(buttonGeometry, buttonMaterialActive.clone());
-        learnButton.position.set(0.75, -1.4, 0);
+        learnButton.position.set(0.8, 0, 0); // Positioned in button group
         learnButton.castShadow = true;
         learnButton.receiveShadow = true;
         learnButton.userData = { name: 'learn', hovered: false };
@@ -256,12 +259,17 @@ export default function VERAVRPage() {
 
         // ===== PREMIUM ANIMATION LOOP =====
         let frameCount = 0;
-        let targetScale = 1;
 
         const animate = () => {
           if (!isMountedRef.current) return;
 
           frameCount++;
+
+          // Smooth text fade-in (takes about 4 seconds at 60fps)
+          if (textMesh && frameCount < 240) {
+            const fadeProgress = Math.min(frameCount / 240, 1);
+            (textMesh.material as any).opacity = fadeProgress;
+          }
 
           // Smooth breathing animation
           const breathPhase = Math.sin(frameCount * 0.004) * 0.04 + 1;
@@ -327,6 +335,19 @@ export default function VERAVRPage() {
       isMountedRef.current = false;
     };
   }, []);
+
+  // Auto-play VERA voice on component mount (desktop/mobile landing page)
+  useEffect(() => {
+    if (!isInVR && isMountedRef.current) {
+      // Small delay to let page render smoothly first
+      const timer = setTimeout(() => {
+        if (isMountedRef.current) {
+          playVeraVoice();
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isInVR]);
 
   const playVeraVoice = () => {
     if (!voiceRef.current) return;
@@ -499,7 +520,6 @@ export default function VERAVRPage() {
                   cursor: 'pointer',
                   fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
                   boxShadow: '0 10px 30px rgba(136, 153, 255, 0.35)',
-                  marginRight: '15px',
                   transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                   letterSpacing: '0.5px',
                   textTransform: 'uppercase',
@@ -517,50 +537,7 @@ export default function VERAVRPage() {
                   btn.style.transform = 'translateY(0) scale(1)';
                 }}
               >
-                Enter VR
-              </button>
-
-              <button
-                onClick={() => {
-                  window.speechSynthesis.cancel();
-                  const utterance = new SpeechSynthesisUtterance(
-                    'I am VERA. Your nervous system intelligence. I breathe with you. I regulate with you. I keep you organized and sane.'
-                  );
-                  utterance.rate = 0.9;
-                  utterance.pitch = 1;
-                  utterance.volume = 1.0;
-                  window.speechSynthesis.speak(utterance);
-                }}
-                className="vera-button"
-                style={{
-                  padding: '16px 60px',
-                  fontSize: '18px',
-                  fontWeight: '600',
-                  background: 'rgba(136, 153, 255, 0.1)',
-                  border: '2px solid #8899ff',
-                  borderRadius: '50px',
-                  color: '#8899ff',
-                  cursor: 'pointer',
-                  fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
-                  transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  letterSpacing: '0.5px',
-                  textTransform: 'uppercase',
-                  marginLeft: '15px'
-                }}
-                onMouseOver={(e) => {
-                  const btn = e.currentTarget;
-                  btn.style.background = 'rgba(136, 153, 255, 0.15)';
-                  btn.style.boxShadow = '0 8px 20px rgba(136, 153, 255, 0.2)';
-                  btn.style.transform = 'translateY(-2px)';
-                }}
-                onMouseOut={(e) => {
-                  const btn = e.currentTarget;
-                  btn.style.background = 'rgba(136, 153, 255, 0.1)';
-                  btn.style.boxShadow = 'none';
-                  btn.style.transform = 'translateY(0)';
-                }}
-              >
-                🔊 Hear VERA
+                Enter VERA VR
               </button>
 
               <div
