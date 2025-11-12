@@ -70,6 +70,7 @@ export default function VERASimpleTest() {
   const [isVRSupported, setIsVRSupported] = useState(false);
   const [isInVR, setIsInVR] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [canvasReady, setCanvasReady] = useState(false);
   const glRef = useRef<any>(null);
 
   useEffect(() => {
@@ -84,6 +85,7 @@ export default function VERASimpleTest() {
           setIsVRSupported(false);
         });
     }
+    setCanvasReady(true);
   }, []);
 
   const enterVR = async () => {
@@ -119,16 +121,29 @@ export default function VERASimpleTest() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000', position: 'relative' }}>
-      <Canvas 
-        camera={{ position: [0, 1.6, 3], fov: 75 }}
-        onCreated={({ gl }) => {
-          gl.xr.enabled = true;
-          glRef.current = gl;
-          console.log('Canvas ready, XR enabled');
-        }}
-      >
-        <SimpleVRScene />
-      </Canvas>
+      {!canvasReady && (
+        <div style={{ color: '#fff', textAlign: 'center', paddingTop: '50px' }}>
+          Loading Canvas...
+        </div>
+      )}
+      
+      {canvasReady && (
+        <Canvas 
+          camera={{ position: [0, 1.6, 3], fov: 75 }}
+          onCreated={({ gl }) => {
+            try {
+              gl.xr.enabled = true;
+              glRef.current = gl;
+              console.log('✅ Canvas ready, XR enabled');
+            } catch (e) {
+              console.error('Canvas creation error:', e);
+              setErrorMsg('Canvas error: ' + String(e));
+            }
+          }}
+        >
+          <SimpleVRScene />
+        </Canvas>
+      )}
 
       {!isInVR && (
         <div style={{
