@@ -33,7 +33,8 @@ export default function LaboratoryPage() {
         <div className="relative w-64 h-64 mb-16">
           {/* Breathing orb */}
           <div 
-            className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-300 via-purple-400 to-purple-600 shadow-2xl"
+            className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-300 via-purple-400 to-purple-600 shadow-2xl cursor-pointer hover:shadow-3xl transition-shadow"
+            onClick={() => window.location.href = '/laboratory/immersive'}
             style={{
               animation: 'breathe 4s ease-in-out infinite',
               boxShadow: '0 0 60px rgba(167, 139, 250, 0.8), 0 0 120px rgba(124, 58, 237, 0.6)'

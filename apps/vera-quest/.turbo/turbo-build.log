@@ -1,0 +1,14 @@
+
+> @vera-mobile/vera-quest@0.1.0 build C:\vera-mobile\apps\vera-quest
+> vite build
+
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+[32m✓[39m 0 modules transformed.
+[31mx[39m Build failed in 8ms
+[31merror during build:
+[31mCould not resolve entry module "index.html".[31m
+    at getRollupError (file:///C:/vera-mobile/node_modules/.pnpm/rollup@4.53.2/node_modules/rollup/dist/es/shared/parseAst.js:401:41)
+    at error (file:///C:/vera-mobile/node_modules/.pnpm/rollup@4.53.2/node_modules/rollup/dist/es/shared/parseAst.js:397:42)
+    at ModuleLoader.loadEntryModule (file:///C:/vera-mobile/node_modules/.pnpm/rollup@4.53.2/node_modules/rollup/dist/es/shared/node-entry.js:21597:20)
+    at async Promise.all (index 0)[39m
+ ELIFECYCLE  Command failed with exit code 1.
